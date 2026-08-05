@@ -1,9 +1,29 @@
 "use server";
 
-import { canCreateDemand, requireUser } from "@/lib/auth";
+import { canCreateDemand, canViewScreen, requireUser } from "@/lib/auth";
+import {
+  loadClientDetail,
+  type ClientDetailData,
+} from "@/lib/clients/load-client-detail";
 import { createClient } from "@/lib/supabase/server";
 import type { ClientStatus } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+
+export async function getClientDetail(
+  id: string,
+): Promise<{ data: ClientDetailData } | { error: string }> {
+  const session = await requireUser();
+  if (
+    !canViewScreen(session, "clientes") &&
+    !canViewScreen(session, "dashboard")
+  ) {
+    return { error: "Sem permissão" };
+  }
+
+  const data = await loadClientDetail(id);
+  if (!data) return { error: "Cliente não encontrado" };
+  return { data };
+}
 
 async function log(clientId: string, action: string, meta: Record<string, unknown> = {}) {
   const supabase = await createClient();

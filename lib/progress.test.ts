@@ -62,6 +62,22 @@ describe("progress", () => {
     expect(snap.completed).toBe(4);
   });
 
+  it("does not count doing as completed", () => {
+    const tasks = [
+      task({ id: "1", points: 2, status: "done", due_date: "2026-08-05" }),
+      task({ id: "2", points: 3, status: "doing", due_date: "2026-08-05" }),
+      task({ id: "3", points: 5, status: "todo", due_date: "2026-08-05" }),
+    ];
+    const snap = calcProgress(
+      tasks,
+      new Date("2026-08-05T00:00:00"),
+      new Date("2026-08-05T23:59:59"),
+    );
+    expect(snap.expected).toBe(10);
+    expect(snap.completed).toBe(2);
+    expect(snap.percent).toBe(20);
+  });
+
   it("maps tones and labels", () => {
     expect(progressTone(100)).toBe("green");
     expect(progressTone(80)).toBe("orange");

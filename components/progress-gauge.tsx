@@ -9,12 +9,18 @@ export function ProgressGauge({
   expected,
   weekPoints,
   weekExpected,
+  title = "Progresso Semanal",
+  subtitle = "Sua meta para a semana",
+  periodLabel = "esperados na semana",
 }: {
   percent: number;
   completed: number;
   expected: number;
-  weekPoints: number;
-  weekExpected: number;
+  weekPoints?: number;
+  weekExpected?: number;
+  title?: string;
+  subtitle?: string;
+  periodLabel?: string;
 }) {
   const tone = progressTone(percent);
   const clamped = Math.min(100, Math.max(0, percent));
@@ -25,9 +31,9 @@ export function ProgressGauge({
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-            Progresso Diário
+            {title}
           </h2>
-          <p className="text-sm text-zinc-500">Sua meta para hoje</p>
+          <p className="text-sm text-zinc-500">{subtitle}</p>
         </div>
         <span
           className={cn(
@@ -88,30 +94,35 @@ export function ProgressGauge({
       </div>
 
       <p className="mt-2 text-center text-sm text-zinc-500">
-        {completed} / {expected} esperados hoje
+        {completed} / {expected} {periodLabel}
       </p>
 
-      <div className="mt-6">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="text-zinc-500">Pontos na semana</span>
-          <span className="font-medium text-zinc-900 dark:text-white">
-            {weekPoints}
-            {weekExpected > 0 ? ` / ${weekExpected}` : ""}
-          </span>
+      {weekPoints !== undefined && weekExpected !== undefined ? (
+        <div className="mt-6">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="text-zinc-500">Pontos na semana</span>
+            <span className="font-medium text-zinc-900 dark:text-white">
+              {weekPoints}
+              {weekExpected > 0 ? ` / ${weekExpected}` : ""}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+            <div
+              className="h-full rounded-full bg-orange-500 transition-all"
+              style={{
+                width: `${
+                  weekExpected === 0
+                    ? 0
+                    : Math.min(
+                        100,
+                        Math.round((weekPoints / weekExpected) * 100),
+                      )
+                }%`,
+              }}
+            />
+          </div>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-          <div
-            className="h-full rounded-full bg-orange-500 transition-all"
-            style={{
-              width: `${
-                weekExpected === 0
-                  ? 0
-                  : Math.min(100, Math.round((weekPoints / weekExpected) * 100))
-              }%`,
-            }}
-          />
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

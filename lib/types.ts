@@ -8,8 +8,21 @@ export type ClientStatus =
   | "finalizado"
   | "cancelado";
 
-export type TaskStatus = "todo" | "done";
+export type TaskStatus = "todo" | "doing" | "done";
 export type DocumentVisibility = "todos" | "admin";
+
+/** Cycle: todo → doing (em andamento) → done → todo */
+export function nextTaskStatus(status: TaskStatus): TaskStatus {
+  if (status === "todo") return "doing";
+  if (status === "doing") return "done";
+  return "todo";
+}
+
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  todo: "A fazer",
+  doing: "Em andamento",
+  done: "Concluída",
+};
 
 export type ScreenKey =
   | "dashboard"

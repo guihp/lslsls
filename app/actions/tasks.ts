@@ -82,7 +82,13 @@ export async function toggleTaskStatus(taskId: string, status: TaskStatus) {
     .eq("id", taskId);
 
   if (error) return { error: error.message };
-  await log(task.client_id, status === "done" ? "task_completed" : "task_reopened", {
+  const action =
+    status === "done"
+      ? "task_completed"
+      : status === "doing"
+        ? "task_started"
+        : "task_reopened";
+  await log(task.client_id, action, {
     task_id: taskId,
     title: task.title,
   });

@@ -7,12 +7,18 @@ import {
 } from "@/app/actions/clients";
 import { createComment } from "@/app/actions/comments";
 import { createTask, toggleTaskStatus } from "@/app/actions/tasks";
+import {
+  TaskStatusIcon,
+  taskTitleClassName,
+} from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CLIENT_STATUS_META,
   CLIENT_STATUS_ORDER,
+  nextTaskStatus,
+  TASK_STATUS_LABEL,
   type ActivityLog,
   type Attachment,
   type Client,
@@ -24,9 +30,7 @@ import {
 } from "@/lib/types";
 import { cn, formatDateBR, formatDateLong, relativeTime } from "@/lib/utils";
 import {
-  CheckCircle2,
   ChevronDown,
-  Circle,
   Paperclip,
   Plus,
   User,
@@ -45,6 +49,7 @@ export function ClientDetailView({
   profiles,
   canCreate,
   currentUserId,
+  onRefresh,
   compact = false,
 }: {
   client: Client;
@@ -56,6 +61,7 @@ export function ClientDetailView({
   profiles: Profile[];
   canCreate: boolean;
   currentUserId: string;
+  onRefresh?: () => void;
   compact?: boolean;
 }) {
   const router = useRouter();
@@ -88,6 +94,7 @@ export function ClientDetailView({
 
   function refresh() {
     router.refresh();
+    onRefresh?.();
   }
 
   return (
@@ -322,29 +329,24 @@ export function ClientDetailView({
                         >
                           <button
                             type="button"
+                            title={TASK_STATUS_LABEL[task.status]}
+                            aria-label={TASK_STATUS_LABEL[task.status]}
                             onClick={() =>
                               startTransition(async () => {
                                 await toggleTaskStatus(
                                   task.id,
-                                  task.status === "done" ? "todo" : "done",
+                                  nextTaskStatus(task.status),
                                 );
                                 refresh();
                               })
                             }
                           >
-                            {task.status === "done" ? (
-                              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-zinc-400" />
-                            )}
+                            <TaskStatusIcon
+                              status={task.status}
+                              className="h-5 w-5"
+                            />
                           </button>
-                          <span
-                            className={
-                              task.status === "done"
-                                ? "text-emerald-500 line-through"
-                                : ""
-                            }
-                          >
+                          <span className={taskTitleClassName(task.status)}>
                             {String(idx + 1).padStart(2, "0")}. {task.title}
                           </span>
                           <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
@@ -435,21 +437,22 @@ export function ClientDetailView({
                 <div key={task.id} className="flex items-center gap-2 py-1 text-sm">
                   <button
                     type="button"
+                    title={TASK_STATUS_LABEL[task.status]}
+                    aria-label={TASK_STATUS_LABEL[task.status]}
                     onClick={() =>
                       startTransition(async () => {
                         await toggleTaskStatus(
                           task.id,
-                          task.status === "done" ? "todo" : "done",
+                          nextTaskStatus(task.status),
                         );
                         refresh();
                       })
                     }
                   >
-                    {task.status === "done" ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    ) : (
-                      <Circle className="h-4 w-4 text-zinc-400" />
-                    )}
+                    <TaskStatusIcon
+                      status={task.status}
+                      className="h-4 w-4"
+                    />
                   </button>
                   {task.title}
                 </div>

@@ -1,12 +1,23 @@
 "use client";
 
 import { createTask, toggleTaskStatus } from "@/app/actions/tasks";
+import { ClientDetailDrawer } from "@/components/clients/client-detail-drawer";
 import { EmptyState } from "@/components/empty-state";
 import { ProgressGauge } from "@/components/progress-gauge";
+import {
+  TaskStatusIcon,
+  taskTitleClassName,
+} from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ProgressSnapshot } from "@/lib/progress";
-import type { Client, Profile, Task } from "@/lib/types";
+import {
+  nextTaskStatus,
+  TASK_STATUS_LABEL,
+  type Client,
+  type Profile,
+  type Task,
+} from "@/lib/types";
 import { formatDateBR } from "@/lib/utils";
 import {
   Calendar,
@@ -29,7 +40,6 @@ export function DashboardView({
   canCreate,
   weekLabel,
   dayLabel,
-  daily,
   weekly,
   currentUserId,
 }: {
@@ -48,6 +58,7 @@ export function DashboardView({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [drawerClientId, setDrawerClientId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -232,15 +243,16 @@ export function DashboardView({
                       ) : (
                         <Circle className="h-5 w-5 text-amber-400" />
                       )}
-                      <Link
-                        href={`/clientes/${client.id}`}
-                        className="flex-1 font-medium hover:underline"
+                      <button
+                        type="button"
+                        className="flex-1 text-left font-medium hover:underline"
+                        onClick={() => setDrawerClientId(client.id)}
                       >
                         {client.name}{" "}
                         <span className="text-zinc-500">
                           ({total} task{total === 1 ? "" : "s"})
                         </span>
-                      </Link>
+                      </button>
                       <span className="inline-flex items-center gap-1 text-sm text-zinc-500">
                         <Rocket className="h-3.5 w-3.5" />
                         {done}/{total || 0}
@@ -263,29 +275,24 @@ export function DashboardView({
                             <button
                               type="button"
                               disabled={pending}
+                              title={TASK_STATUS_LABEL[task.status]}
+                              aria-label={TASK_STATUS_LABEL[task.status]}
                               onClick={() =>
                                 startTransition(async () => {
                                   await toggleTaskStatus(
                                     task.id,
-                                    task.status === "done" ? "todo" : "done",
+                                    nextTaskStatus(task.status),
                                   );
                                   router.refresh();
                                 })
                               }
                             >
-                              {task.status === "done" ? (
-                                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                              ) : (
-                                <Circle className="h-5 w-5 text-zinc-400" />
-                              )}
+                              <TaskStatusIcon
+                                status={task.status}
+                                className="h-5 w-5"
+                              />
                             </button>
-                            <span
-                              className={
-                                task.status === "done"
-                                  ? "text-emerald-500 line-through"
-                                  : ""
-                              }
-                            >
+                            <span className={taskTitleClassName(task.status)}>
                               {String(idx + 1).padStart(2, "0")}. {task.title}
                             </span>
                             <span className="ml-auto text-xs text-zinc-500">
@@ -359,13 +366,21 @@ export function DashboardView({
         </section>
 
         <ProgressGauge
-          percent={daily.percent}
-          completed={daily.completed}
-          expected={daily.expected}
-          weekPoints={weekly.completed}
-          weekExpected={weekly.expected}
+          percent={weekly.percent}
+          completed={weekly.completed}
+          expected={weekly.expected}
         />
       </div>
+
+      {drawerClientId ? (
+        <ClientDetailDrawer
+          key={drawerClientId}
+          clientId={drawerClientId}
+          onClose={() => setDrawerClientId(null)}
+          canCreate={canCreate}
+          currentUserId={currentUserId}
+        />
+      ) : null}
     </div>
   );
 }

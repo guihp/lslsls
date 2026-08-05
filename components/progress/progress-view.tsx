@@ -47,6 +47,9 @@ export function ProgressView({
           expected={daily.expected}
           weekPoints={weekly.completed}
           weekExpected={weekly.expected}
+          title="Progresso Diário"
+          subtitle="Sua meta para hoje"
+          periodLabel="esperados hoje"
         />
 
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
