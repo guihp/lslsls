@@ -25,7 +25,7 @@ export default async function AdminUsersPage() {
   })).filter((u) => u.permissions);
 
   return (
-    <div className="px-6 py-8">
+    <div className="overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-8 flex items-center gap-2">
         <Shield className="h-5 w-5" />
         <div>

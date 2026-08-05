@@ -74,10 +74,10 @@ export function AdminUsersPanel({
                 <p className="text-sm text-zinc-500">{profile.email}</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="text-sm text-zinc-500">
+                <label className="flex w-full flex-col gap-1 text-sm text-zinc-500 sm:w-auto sm:flex-row sm:items-center">
                   Cargo
                   <input
-                    className="ml-2 rounded-lg border border-zinc-300 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+                    className="w-full rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm sm:ml-2 sm:w-auto dark:border-zinc-700"
                     defaultValue={profile.job_title}
                     disabled={pending}
                     onBlur={(e) => {

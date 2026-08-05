@@ -62,6 +62,19 @@ describe("progress", () => {
     expect(snap.completed).toBe(4);
   });
 
+  it("includes undated tasks in weekly expected and percent", () => {
+    const tasks = [
+      task({ id: "1", points: 4, status: "done", due_date: null }),
+      task({ id: "2", points: 6, status: "todo", due_date: null }),
+      task({ id: "3", points: 2, status: "doing", due_date: "2026-08-06" }),
+    ];
+    const snap = weeklyProgress(tasks, new Date("2026-08-05"));
+    expect(snap.expected).toBe(12);
+    expect(snap.completed).toBe(4);
+    expect(snap.percent).toBe(33);
+    expect(snap.label).not.toBe("Sem meta");
+  });
+
   it("does not count doing as completed", () => {
     const tasks = [
       task({ id: "1", points: 2, status: "done", due_date: "2026-08-05" }),

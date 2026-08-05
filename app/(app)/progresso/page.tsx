@@ -1,7 +1,6 @@
 import { ProgressView } from "@/components/progress/progress-view";
 import { canViewScreen, requireUser } from "@/lib/auth";
 import {
-  dailyProgress,
   formatWeekRange,
   lastWeeksProgress,
   weeklyProgress,
@@ -22,7 +21,6 @@ export default async function ProgressoPage() {
 
   const { data: tasks } = await query;
   const list = (tasks as Task[]) || [];
-  const daily = dailyProgress(list);
   const weekly = weeklyProgress(list);
   const history = lastWeeksProgress(list, 4);
   const workday = workdayIndex();
@@ -31,7 +29,6 @@ export default async function ProgressoPage() {
     <ProgressView
       weekLabel={formatWeekRange()}
       dayLabel={`Dia ${workday.current}/${workday.total}`}
-      daily={daily}
       weekly={weekly}
       history={history}
     />

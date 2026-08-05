@@ -48,7 +48,7 @@ export function ClientDrawer({
           aria-label="Fechar"
         />
       )}
-      <div className="relative flex h-full w-full max-w-[min(100%,52rem)] flex-col border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="relative flex h-full w-full flex-col border-l border-zinc-200 bg-white shadow-2xl md:w-1/2 md:max-w-3xl dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex shrink-0 items-center justify-end border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           {closeControl}
         </div>

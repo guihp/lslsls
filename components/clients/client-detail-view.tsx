@@ -106,7 +106,7 @@ export function ClientDetailView({
           : "min-h-screen lg:grid-cols-[1fr_360px]",
       )}
     >
-      <div className="px-6 py-6">
+      <div className="overflow-x-hidden px-4 py-6 sm:px-6">
         <div className="mb-4 text-sm text-zinc-500">
           <Link href="/clientes" className="hover:underline">
             Projetos

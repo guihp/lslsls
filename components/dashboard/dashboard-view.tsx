@@ -18,7 +18,7 @@ import {
   type Profile,
   type Task,
 } from "@/lib/types";
-import { formatDateBR } from "@/lib/utils";
+import { cn, formatDateBR } from "@/lib/utils";
 import {
   Calendar,
   CheckCircle2,
@@ -50,7 +50,6 @@ export function DashboardView({
   canCreate: boolean;
   weekLabel: string;
   dayLabel: string;
-  daily: ProgressSnapshot;
   weekly: ProgressSnapshot;
   currentUserId: string;
 }) {
@@ -78,7 +77,7 @@ export function DashboardView({
     .reduce((s, t) => s + t.points, 0);
 
   return (
-    <div className="px-6 py-6">
+    <div className="overflow-x-hidden px-4 py-6 sm:px-6">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Dev Dashboard</h1>
         <span className="rounded-full border border-zinc-300 px-3 py-1 text-sm text-zinc-500 dark:border-zinc-700">
@@ -90,7 +89,7 @@ export function DashboardView({
         {canCreate ? (
           <Button
             type="button"
-            className="ml-auto"
+            className="w-full sm:ml-auto sm:w-auto"
             onClick={() => {
               setError(null);
               setShowNewTask((prev) => !prev);
@@ -133,7 +132,7 @@ export function DashboardView({
                 <select
                   name="client_id"
                   required
-                  className="rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+                  className="w-full max-w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
                 >
                   {allClients.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -144,7 +143,7 @@ export function DashboardView({
                 <select
                   name="assignee_id"
                   defaultValue={currentUserId}
-                  className="rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+                  className="w-full max-w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
                 >
                   {profiles.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -222,9 +221,10 @@ export function DashboardView({
                     key={client.id}
                     className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
                   >
-                    <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:gap-3">
                       <button
                         type="button"
+                        className="inline-flex h-9 w-9 items-center justify-center"
                         onClick={() =>
                           setExpanded((prev) => ({
                             ...prev,
@@ -239,13 +239,13 @@ export function DashboardView({
                         )}
                       </button>
                       {complete ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
                       ) : (
-                        <Circle className="h-5 w-5 text-amber-400" />
+                        <Circle className="h-5 w-5 shrink-0 text-amber-400" />
                       )}
                       <button
                         type="button"
-                        className="flex-1 text-left font-medium hover:underline"
+                        className="min-w-0 flex-1 text-left font-medium hover:underline"
                         onClick={() => setDrawerClientId(client.id)}
                       >
                         {client.name}{" "}
@@ -270,10 +270,11 @@ export function DashboardView({
                         {clientTasks.map((task, idx) => (
                           <div
                             key={task.id}
-                            className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                            className="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
                           >
                             <button
                               type="button"
+                              className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center"
                               disabled={pending}
                               title={TASK_STATUS_LABEL[task.status]}
                               aria-label={TASK_STATUS_LABEL[task.status]}
@@ -292,10 +293,15 @@ export function DashboardView({
                                 className="h-5 w-5"
                               />
                             </button>
-                            <span className={taskTitleClassName(task.status)}>
+                            <span
+                              className={cn(
+                                "min-w-0 flex-1 break-words",
+                                taskTitleClassName(task.status),
+                              )}
+                            >
                               {String(idx + 1).padStart(2, "0")}. {task.title}
                             </span>
-                            <span className="ml-auto text-xs text-zinc-500">
+                            <span className="shrink-0 text-xs text-zinc-500">
                               {task.points} pts
                             </span>
                           </div>

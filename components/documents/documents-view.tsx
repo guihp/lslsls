@@ -42,7 +42,7 @@ export function DocumentsView({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="px-6 py-8">
+    <div className="overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Documentos</h1>
@@ -50,9 +50,9 @@ export function DocumentsView({
             {documents.length} documentos
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <form
-            className="relative"
+            className="relative min-w-0 flex-1 sm:flex-none"
             onSubmit={(e) => {
               e.preventDefault();
               router.push(
@@ -64,14 +64,14 @@ export function DocumentsView({
           >
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <Input
-              className="w-48 pl-9"
+              className="w-full pl-9 sm:w-48"
               placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </form>
           {canCreate ? (
-            <Button type="button" onClick={() => setShowCreate(true)}>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" /> Novo
             </Button>
           ) : null}
@@ -92,7 +92,7 @@ export function DocumentsView({
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
-          <div className="grid grid-cols-[1fr_120px_120px_40px] gap-3 border-b border-zinc-200 px-4 py-3 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:border-zinc-800">
+          <div className="hidden grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_2.5rem] gap-3 border-b border-zinc-200 px-4 py-3 text-xs font-medium uppercase tracking-wide text-zinc-400 md:grid dark:border-zinc-800">
             <span>Nome</span>
             <span>Visibilidade</span>
             <span>Atualizado</span>
@@ -103,42 +103,44 @@ export function DocumentsView({
             return (
               <div
                 key={doc.id}
-                className="grid grid-cols-[1fr_120px_120px_40px] items-center gap-3 border-b border-zinc-100 px-4 py-4 last:border-0 dark:border-zinc-900"
+                className="flex flex-col gap-3 border-b border-zinc-100 px-4 py-4 last:border-0 md:grid md:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem_2.5rem] md:items-center dark:border-zinc-900"
               >
                 <a
                   href={doc.url || "#"}
                   target={doc.url ? "_blank" : undefined}
                   rel="noreferrer"
-                  className="flex items-center gap-3 font-medium hover:underline"
+                  className="flex min-w-0 items-center gap-3 font-medium hover:underline"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
                     <Icon className="h-4 w-4" />
                   </span>
-                  {doc.title}
+                  <span className="min-w-0 break-words">{doc.title}</span>
                 </a>
-                <span className="inline-flex items-center gap-1 text-sm text-zinc-500">
-                  <Eye className="h-3.5 w-3.5 text-orange-600" />
-                  {doc.visibility === "todos" ? "Todos" : "Admin"}
-                </span>
-                <span className="text-sm text-zinc-500">
-                  {relativeTime(doc.created_at)}
-                </span>
-                {canCreate ? (
-                  <button
-                    type="button"
-                    className="text-zinc-400 hover:text-red-500"
-                    onClick={() =>
-                      startTransition(async () => {
-                        await deleteDocument(doc.id);
-                        router.refresh();
-                      })
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <span />
-                )}
+                <div className="flex flex-wrap items-center justify-between gap-3 md:contents">
+                  <span className="inline-flex items-center gap-1 text-sm text-zinc-500">
+                    <Eye className="h-3.5 w-3.5 text-orange-600" />
+                    {doc.visibility === "todos" ? "Todos" : "Admin"}
+                  </span>
+                  <span className="text-sm text-zinc-500">
+                    {relativeTime(doc.created_at)}
+                  </span>
+                  {canCreate ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 w-9 items-center justify-center text-zinc-400 hover:text-red-500 md:justify-self-end"
+                      onClick={() =>
+                        startTransition(async () => {
+                          await deleteDocument(doc.id);
+                          router.refresh();
+                        })
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                </div>
               </div>
             );
           })}

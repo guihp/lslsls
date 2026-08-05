@@ -7,8 +7,6 @@ export function ProgressGauge({
   percent,
   completed,
   expected,
-  weekPoints,
-  weekExpected,
   title = "Progresso Semanal",
   subtitle = "Sua meta para a semana",
   periodLabel = "esperados na semana",
@@ -16,8 +14,6 @@ export function ProgressGauge({
   percent: number;
   completed: number;
   expected: number;
-  weekPoints?: number;
-  weekExpected?: number;
   title?: string;
   subtitle?: string;
   periodLabel?: string;
@@ -27,9 +23,9 @@ export function ProgressGauge({
   const rotation = (clamped / 100) * 180 - 90;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
             {title}
           </h2>
@@ -37,7 +33,7 @@ export function ProgressGauge({
         </div>
         <span
           className={cn(
-            "rounded-full px-3 py-1 text-xs font-medium",
+            "shrink-0 rounded-full px-3 py-1 text-xs font-medium",
             tone === "green" && "bg-orange-500/15 text-orange-600",
             tone === "orange" && "bg-orange-500/15 text-orange-500",
             tone === "red" && "bg-red-500/15 text-red-500",
@@ -48,7 +44,7 @@ export function ProgressGauge({
         </span>
       </div>
 
-      <div className="relative mx-auto h-40 w-72">
+      <div className="relative mx-auto h-36 w-full max-w-72 sm:h-40">
         <svg viewBox="0 0 200 110" className="h-full w-full">
           <path
             d="M 20 100 A 80 80 0 0 1 180 100"
@@ -96,33 +92,6 @@ export function ProgressGauge({
       <p className="mt-2 text-center text-sm text-zinc-500">
         {completed} / {expected} {periodLabel}
       </p>
-
-      {weekPoints !== undefined && weekExpected !== undefined ? (
-        <div className="mt-6">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-zinc-500">Pontos na semana</span>
-            <span className="font-medium text-zinc-900 dark:text-white">
-              {weekPoints}
-              {weekExpected > 0 ? ` / ${weekExpected}` : ""}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-            <div
-              className="h-full rounded-full bg-orange-500 transition-all"
-              style={{
-                width: `${
-                  weekExpected === 0
-                    ? 0
-                    : Math.min(
-                        100,
-                        Math.round((weekPoints / weekExpected) * 100),
-                      )
-                }%`,
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

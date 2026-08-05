@@ -8,7 +8,7 @@ export default async function PerfilPage() {
   const { profile } = session;
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
+    <div className="mx-auto max-w-2xl overflow-x-hidden px-4 py-6 sm:px-6 sm:py-8">
       <div className="mb-8 flex items-center gap-2 text-zinc-900 dark:text-white">
         <User className="h-5 w-5" />
         <h1 className="text-xl font-semibold">Meu Perfil</h1>

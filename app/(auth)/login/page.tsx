@@ -36,10 +36,10 @@ export default function LoginPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#fff7f0] px-4 dark:bg-black">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,107,0,0.18),_transparent_55%)]" />
-      <div className="relative w-full max-w-md rounded-2xl border border-orange-200/70 bg-white/95 p-8 shadow-lg shadow-orange-500/10 dark:border-orange-500/20 dark:bg-zinc-950">
+      <div className="relative w-full max-w-md rounded-2xl border border-orange-200/70 bg-white/95 p-5 shadow-lg shadow-orange-500/10 sm:p-8 dark:border-orange-500/20 dark:bg-zinc-950">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-orange-200 dark:ring-orange-500/30">
-            <BrandLogo size={56} priority />
+          <div className="mx-auto mb-4 flex items-center justify-center bg-transparent">
+            <BrandLogo size={72} priority className="bg-transparent" />
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
             Entrar

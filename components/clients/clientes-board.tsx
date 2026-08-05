@@ -82,29 +82,29 @@ export function ClientesBoard({
   }, [visibleClients]);
 
   return (
-    <div className="px-6 py-6">
+    <div className="overflow-x-hidden px-4 py-6 sm:px-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="text-sm text-zinc-500">
           Listas &gt; <span className="font-medium text-zinc-900 dark:text-white">Clientes</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700"
           >
             <Filter className="h-4 w-4" /> Filtrar
           </button>
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <Input
-              className="w-56 pl-9"
+              className="w-full pl-9 sm:w-56"
               placeholder="Buscar clientes..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           {canCreate ? (
-            <Button type="button" onClick={() => setShowCreate(true)}>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" /> Novo Cliente
             </Button>
           ) : null}

@@ -9,9 +9,9 @@ export default async function AppLayout({
   const session = await requireUser();
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+    <div className="min-h-screen overflow-x-hidden bg-zinc-50 dark:bg-black">
       <AppSidebar session={session} />
-      <main className="min-h-screen pl-16">{children}</main>
+      <main className="min-h-screen pb-20 md:pb-0 md:pl-16">{children}</main>
     </div>
   );
 }

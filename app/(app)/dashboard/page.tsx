@@ -1,7 +1,6 @@
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { canCreateDemand, canViewScreen, requireUser } from "@/lib/auth";
 import {
-  dailyProgress,
   formatWeekRange,
   weeklyProgress,
   workdayIndex,
@@ -36,7 +35,6 @@ export default async function DashboardPage() {
   // Dashboard lista só clientes que já têm demanda — criar cliente ≠ task
   const relevantClients = allClients.filter((c) => clientIds.has(c.id));
 
-  const day = dailyProgress(myTasks);
   const week = weeklyProgress(myTasks);
   const workday = workdayIndex();
 
@@ -54,7 +52,6 @@ export default async function DashboardPage() {
       canCreate={canCreateDemand(session)}
       weekLabel={formatWeekRange()}
       dayLabel={`Dia ${workday.current}/${workday.total}`}
-      daily={day}
       weekly={week}
       currentUserId={userId}
     />
