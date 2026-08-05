@@ -1,0 +1,4 @@
+-- Migrations applied remotely via MCP user-daily:
+-- 1) initial_schema
+-- 2) secure_functions
+-- Source of truth: Supabase project gyadlrxdwxwzaerpjudu
