@@ -10,11 +10,13 @@ export function ClientDetailDrawer({
   clientId,
   onClose,
   canCreate,
+  canManageTasks,
   currentUserId,
 }: {
   clientId: string;
   onClose: () => void;
   canCreate: boolean;
+  canManageTasks?: boolean;
   currentUserId: string;
 }) {
   const [data, setData] = useState<ClientDetailData | null>(null);
@@ -40,6 +42,11 @@ export function ClientDetailDrawer({
     };
   }, [clientId, reloadToken]);
 
+  const manageTasks =
+    canManageTasks ??
+    (canCreate ||
+      Boolean(data?.tasks.some((t) => t.assignee_id === currentUserId)));
+
   return (
     <ClientDrawer onClose={onClose}>
       {error ? (
@@ -56,6 +63,7 @@ export function ClientDetailDrawer({
           attachments={data.attachments}
           profiles={data.profiles}
           canCreate={canCreate}
+          canManageTasks={manageTasks}
           currentUserId={currentUserId}
           onRefresh={() => setReloadToken((token) => token + 1)}
           compact

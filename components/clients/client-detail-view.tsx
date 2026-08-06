@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatActivityAction } from "@/lib/activity";
 import {
   CLIENT_STATUS_META,
   clientStatusSelectOptions,
@@ -46,6 +47,7 @@ export function ClientDetailView({
   attachments,
   profiles,
   canCreate,
+  canManageTasks,
   currentUserId,
   onRefresh,
   compact = false,
@@ -58,10 +60,13 @@ export function ClientDetailView({
   attachments: Attachment[];
   profiles: Profile[];
   canCreate: boolean;
+  /** Assignees may add tasks on clients they already work on. */
+  canManageTasks?: boolean;
   currentUserId: string;
   onRefresh?: () => void;
   compact?: boolean;
 }) {
+  const allowTasks = canManageTasks ?? canCreate;
   const router = useRouter();
   const [tab, setTab] = useState<"comentarios" | "atividade">("comentarios");
   const [pending, startTransition] = useTransition();
@@ -403,7 +408,7 @@ export function ClientDetailView({
                         </div>
                       );
                     })}
-                    {canCreate ? (
+                    {allowTasks ? (
                       addingSprint === sprint.id ? (
                         <form
                           className="mt-2 space-y-2 p-2"
@@ -412,6 +417,9 @@ export function ClientDetailView({
                             const fd = new FormData(e.currentTarget);
                             fd.set("client_id", client.id);
                             fd.set("sprint_id", sprint.id);
+                            if (!canCreate) {
+                              fd.set("assignee_id", currentUserId);
+                            }
                             startTransition(async () => {
                               const res = await createTask(fd);
                               if (res.error) setError(res.error);
@@ -424,22 +432,31 @@ export function ClientDetailView({
                         >
                           <Input name="title" placeholder="Nova tarefa" required />
                           <div className="grid grid-cols-2 gap-2">
-                            <select
-                              name="assignee_id"
-                              defaultValue={currentUserId}
-                              className="rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
-                            >
-                              {profiles.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.full_name} · {p.job_title}
-                                </option>
-                              ))}
-                            </select>
+                            {canCreate ? (
+                              <select
+                                name="assignee_id"
+                                defaultValue={currentUserId}
+                                className="rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+                              >
+                                {profiles.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.full_name} · {p.job_title}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="hidden"
+                                name="assignee_id"
+                                value={currentUserId}
+                              />
+                            )}
                             <Input
                               name="points"
                               type="number"
                               min={0}
                               defaultValue={1}
+                              className={canCreate ? undefined : "col-span-2"}
                             />
                           </div>
                           <Input name="due_date" type="date" />
@@ -609,12 +626,24 @@ export function ClientDetailView({
             ) : (
               activity.map((a) => {
                 const actor = a.user_id ? profileMap.get(a.user_id) : null;
+                const formatted = formatActivityAction(
+                  a,
+                  actor?.full_name || "Sistema",
+                );
                 return (
-                  <div key={a.id} className="text-sm">
-                    <p className="font-medium">
-                      {actor?.full_name || "Sistema"} · {a.action}
+                  <div
+                    key={a.id}
+                    className="rounded-xl border border-zinc-100 px-3 py-2 dark:border-zinc-900"
+                  >
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      {formatted.headline}
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    {formatted.detail ? (
+                      <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+                        {formatted.detail}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-zinc-500">
                       {relativeTime(a.created_at)}
                     </p>
                   </div>

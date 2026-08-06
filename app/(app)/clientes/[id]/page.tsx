@@ -21,6 +21,11 @@ export default async function ClientDetailPage({
   const data = await loadClientDetail(id);
   if (!data) notFound();
 
+  const canCreate = canCreateDemand(session);
+  const canManageTasks =
+    canCreate ||
+    data.tasks.some((t) => t.assignee_id === session.profile.id);
+
   return (
     <ClientDrawer closeHref="/clientes">
       <ClientDetailView
@@ -31,7 +36,8 @@ export default async function ClientDetailPage({
         activity={data.activity}
         attachments={data.attachments}
         profiles={data.profiles}
-        canCreate={canCreateDemand(session)}
+        canCreate={canCreate}
+        canManageTasks={canManageTasks}
         currentUserId={session.profile.id}
         compact
       />

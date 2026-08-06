@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ChartNoAxesColumn,
@@ -26,6 +27,20 @@ const NAV = [
   { href: "/admin/usuarios", key: "admin" as const, icon: Shield, label: "Admin" },
 ];
 
+function NavPendingHint({ compact }: { compact?: boolean }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute rounded-full bg-current opacity-0 transition-opacity",
+        compact ? "right-1 top-1 h-1.5 w-1.5" : "right-1.5 top-1.5 h-1.5 w-1.5",
+        pending && "animate-pulse opacity-70",
+      )}
+    />
+  );
+}
+
 function NavLinks({
   session,
   pathname,
@@ -47,6 +62,7 @@ function NavLinks({
             href={item.href}
             title={item.label}
             className={cn(
+              "relative",
               compact
                 ? "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium"
                 : "flex h-10 w-10 items-center justify-center rounded-xl transition",
@@ -61,6 +77,7 @@ function NavLinks({
           >
             <Icon className={cn(compact ? "h-5 w-5" : "h-5 w-5")} />
             {compact ? <span className="truncate">{item.label}</span> : null}
+            <NavPendingHint compact={compact} />
           </Link>
         );
       })}

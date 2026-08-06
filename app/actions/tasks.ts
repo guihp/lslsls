@@ -4,7 +4,7 @@ import { canCreateDemand, requireUser } from "@/lib/auth";
 import { weekEndDateISO } from "@/lib/progress";
 import { ensureWeekSprint } from "@/lib/sprints";
 import { createClient } from "@/lib/supabase/server";
-import type { TaskStatus } from "@/lib/types";
+import type { SessionUser, TaskStatus } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 async function log(clientId: string, action: string, meta: Record<string, unknown> = {}) {
@@ -16,13 +16,49 @@ async function log(clientId: string, action: string, meta: Record<string, unknow
   });
 }
 
+/** Demand creators/admins: full. Assignees: only self-assigned on a client they already work on. */
+async function assertCanCreateTask(
+  session: SessionUser,
+  clientId: string,
+  assigneeId: string | null,
+): Promise<string | null> {
+  if (canCreateDemand(session) || session.profile.is_admin) return null;
+
+  if (assigneeId !== session.profile.id) {
+    return "Você só pode criar tarefas atribuídas a você";
+  }
+
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .eq("assignee_id", session.profile.id);
+
+  if (error) return error.message;
+  if (!count || count < 1) {
+    return "Sem permissão para criar tarefa neste cliente";
+  }
+  return null;
+}
+
+function canEditTaskRow(
+  session: SessionUser,
+  task: { assignee_id: string | null },
+): boolean {
+  return (
+    session.profile.is_admin ||
+    canCreateDemand(session) ||
+    task.assignee_id === session.profile.id
+  );
+}
+
 export async function createTask(formData: FormData) {
   const session = await requireUser();
-  if (!canCreateDemand(session)) return { error: "Sem permissão para criar demanda" };
 
   const clientId = String(formData.get("client_id") || "");
   const title = String(formData.get("title") || "").trim();
-  const assigneeId = String(formData.get("assignee_id") || "") || null;
+  let assigneeId = String(formData.get("assignee_id") || "") || null;
   let sprintId = String(formData.get("sprint_id") || "") || null;
   // Points field removed from Nova demanda UI — default to 1.
   const rawPoints = formData.get("points");
@@ -35,6 +71,14 @@ export async function createTask(formData: FormData) {
     String(formData.get("due_date") || "").trim() || weekEndDateISO();
 
   if (!clientId || !title) return { error: "Cliente e título obrigatórios" };
+
+  // Collaborators cannot assign work to others.
+  if (!canCreateDemand(session) && !session.profile.is_admin) {
+    assigneeId = session.profile.id;
+  }
+
+  const denied = await assertCanCreateTask(session, clientId, assigneeId);
+  if (denied) return { error: denied };
 
   const supabase = await createClient();
 
@@ -93,12 +137,7 @@ export async function toggleTaskStatus(taskId: string, status: TaskStatus) {
 
   if (fetchError || !task) return { error: fetchError?.message || "Task não encontrada" };
 
-  const canEdit =
-    session.profile.is_admin ||
-    canCreateDemand(session) ||
-    task.assignee_id === session.profile.id;
-
-  if (!canEdit) return { error: "Sem permissão" };
+  if (!canEditTaskRow(session, task)) return { error: "Sem permissão" };
 
   const { error } = await supabase
     .from("tasks")
@@ -133,24 +172,51 @@ export async function updateTask(
   },
 ) {
   const session = await requireUser();
-  if (!canCreateDemand(session) && !session.profile.is_admin) {
-    return { error: "Sem permissão" };
-  }
-
   const supabase = await createClient();
-  const { data: task } = await supabase
+  const { data: task, error: fetchError } = await supabase
     .from("tasks")
-    .select("client_id")
+    .select("*")
     .eq("id", taskId)
     .single();
 
-  const { error } = await supabase.from("tasks").update(data).eq("id", taskId);
+  if (fetchError || !task) {
+    return { error: fetchError?.message || "Task não encontrada" };
+  }
+
+  if (!canEditTaskRow(session, task)) {
+    return { error: "Sem permissão" };
+  }
+
+  const isDemandCreator =
+    canCreateDemand(session) || session.profile.is_admin;
+
+  // Assignees may edit content of their tasks, not reassign to others.
+  const patch: typeof data = { ...data };
+  if (!isDemandCreator) {
+    delete patch.assignee_id;
+    delete patch.sprint_id;
+  }
+
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  for (const key of ["title", "assignee_id", "points", "due_date", "sprint_id"] as const) {
+    if (patch[key] === undefined) continue;
+    const from = task[key];
+    const to = patch[key];
+    if (from !== to) {
+      changes[key] = { from, to };
+    }
+  }
+
+  const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
   if (error) return { error: error.message };
 
-  if (task) {
-    await log(task.client_id, "task_updated", { task_id: taskId, ...data });
-    revalidatePath(`/clientes/${task.client_id}`);
-  }
+  await log(task.client_id, "task_updated", {
+    task_id: taskId,
+    title: typeof patch.title === "string" ? patch.title : task.title,
+    changes,
+    ...patch,
+  });
+  revalidatePath(`/clientes/${task.client_id}`);
   revalidatePath("/dashboard");
   revalidatePath("/progresso");
   return { success: true };

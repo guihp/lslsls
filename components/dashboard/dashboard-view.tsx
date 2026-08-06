@@ -88,6 +88,7 @@ function TaskEditForm({
   startTransition,
   onCancel,
   onSaved,
+  canReassign,
 }: {
   task: Task;
   profiles: ProfileLite[];
@@ -95,6 +96,7 @@ function TaskEditForm({
   startTransition: (fn: () => void) => void;
   onCancel: () => void;
   onSaved: () => void;
+  canReassign: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
 
@@ -119,7 +121,7 @@ function TaskEditForm({
               title,
               points: Number.isFinite(points) ? points : 1,
               due_date: dueDate,
-              assignee_id: assigneeId,
+              ...(canReassign ? { assignee_id: assigneeId } : {}),
             });
             if (res.error) setError(res.error);
             else onSaved();
@@ -128,7 +130,7 @@ function TaskEditForm({
       }}
     >
       <Input name="title" defaultValue={task.title} required />
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className={cn("grid gap-2", canReassign ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
         <Input
           name="points"
           type="number"
@@ -141,18 +143,22 @@ function TaskEditForm({
           type="date"
           defaultValue={task.due_date || ""}
         />
-        <select
-          name="assignee_id"
-          defaultValue={task.assignee_id || ""}
-          className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
-        >
-          <option value="">Sem responsável</option>
-          {profiles.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.full_name} · {p.job_title}
-            </option>
-          ))}
-        </select>
+        {canReassign ? (
+          <select
+            name="assignee_id"
+            defaultValue={task.assignee_id || ""}
+            className="w-full rounded-xl border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+          >
+            <option value="">Sem responsável</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name} · {p.job_title}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input type="hidden" name="assignee_id" value={task.assignee_id || ""} />
+        )}
       </div>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex justify-end gap-2">
@@ -173,6 +179,7 @@ function ClientTaskGroup({
   sprint,
   profiles,
   canCreate,
+  canManageTasks,
   showAssignee,
   currentUserId,
   defaultDueDate,
@@ -193,6 +200,8 @@ function ClientTaskGroup({
   sprint: Sprint | null;
   profiles: ProfileLite[];
   canCreate: boolean;
+  /** Add/edit tasks on this group; delete stays on canCreate. */
+  canManageTasks: boolean;
   showAssignee: boolean;
   currentUserId: string;
   defaultDueDate: string;
@@ -234,7 +243,7 @@ function ClientTaskGroup({
         )}
         <button
           type="button"
-          className="min-w-0 flex-1 text-left font-medium hover:underline"
+          className="min-w-0 flex-1 cursor-pointer text-left font-medium hover:underline"
           onClick={onOpenClient}
         >
           {client.name}{" "}
@@ -269,6 +278,8 @@ function ClientTaskGroup({
           {clientTasks.map((task, idx) => {
             const assignee = profileById(profiles, task.assignee_id);
             const isEditing = editingId === task.id;
+            const canEditThis =
+              canCreate || task.assignee_id === currentUserId;
 
             return (
               <div key={task.id} className="rounded-lg px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
@@ -297,30 +308,30 @@ function ClientTaskGroup({
                   <span className="shrink-0 text-xs text-zinc-500">
                     {task.points} pts
                   </span>
+                  {canEditThis ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-orange-600 dark:hover:bg-zinc-800"
+                      title="Editar tarefa"
+                      aria-label="Editar tarefa"
+                      onClick={() =>
+                        setEditingId(isEditing ? null : task.id)
+                      }
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  ) : null}
                   {canCreate ? (
-                    <>
-                      <button
-                        type="button"
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-orange-600 dark:hover:bg-zinc-800"
-                        title="Editar demanda"
-                        aria-label="Editar demanda"
-                        onClick={() =>
-                          setEditingId(isEditing ? null : task.id)
-                        }
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
-                        title="Excluir demanda"
-                        aria-label="Excluir demanda"
-                        disabled={pending}
-                        onClick={() => onRequestDelete(task)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
+                      title="Excluir demanda"
+                      aria-label="Excluir demanda"
+                      disabled={pending}
+                      onClick={() => onRequestDelete(task)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   ) : null}
                 </div>
                 {isEditing ? (
@@ -329,6 +340,7 @@ function ClientTaskGroup({
                     profiles={profiles}
                     pending={pending}
                     startTransition={startTransition}
+                    canReassign={canCreate}
                     onCancel={() => setEditingId(null)}
                     onSaved={() => {
                       setEditingId(null);
@@ -342,7 +354,7 @@ function ClientTaskGroup({
             );
           })}
 
-          {canCreate ? (
+          {canManageTasks ? (
             addingFor === client.id ? (
               <form
                 className="mt-2 space-y-2 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-900"
@@ -362,7 +374,7 @@ function ClientTaskGroup({
                   });
                 }}
               >
-                <Input name="title" placeholder="Título da demanda" required />
+                <Input name="title" placeholder="Título da tarefa" required />
                 <input type="hidden" name="assignee_id" value={currentUserId} />
                 <Input
                   name="due_date"
@@ -716,6 +728,7 @@ export function DashboardView({
                       clientTasks={byClientMine.get(client.id) || []}
                       sprint={sprintForTasks(byClientMine.get(client.id) || [])}
                       showAssignee={false}
+                      canManageTasks
                       onOpenClient={() => setDrawerClientId(client.id)}
                       {...sharedRowProps}
                     />
@@ -741,6 +754,7 @@ export function DashboardView({
                       clientTasks={byClientOther.get(client.id) || []}
                       sprint={sprintForTasks(byClientOther.get(client.id) || [])}
                       showAssignee
+                      canManageTasks={canCreate}
                       onOpenClient={() => setDrawerClientId(client.id)}
                       {...sharedRowProps}
                     />
@@ -790,6 +804,7 @@ export function DashboardView({
                     clientTasks={byClientMine.get(client.id) || []}
                     sprint={sprintForTasks(byClientMine.get(client.id) || [])}
                     showAssignee={false}
+                    canManageTasks
                     onOpenClient={() => setDrawerClientId(client.id)}
                     {...sharedRowProps}
                   />
@@ -812,6 +827,14 @@ export function DashboardView({
           clientId={drawerClientId}
           onClose={() => setDrawerClientId(null)}
           canCreate={canCreate}
+          canManageTasks={
+            canCreate ||
+            localTasks.some(
+              (t) =>
+                t.client_id === drawerClientId &&
+                t.assignee_id === currentUserId,
+            )
+          }
           currentUserId={currentUserId}
         />
       ) : null}

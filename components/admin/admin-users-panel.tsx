@@ -6,6 +6,7 @@ import {
 } from "@/app/actions/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import type { Profile, UserPermissions } from "@/lib/types";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -176,12 +177,12 @@ export function AdminUsersPanel({
               placeholder="email@empresa.com"
               required
             />
-            <Input
+            <PasswordInput
               name="password"
-              type="password"
               minLength={6}
               placeholder="Senha temporária (mín. 6)"
               required
+              autoComplete="new-password"
             />
             <Input
               name="job_title"
