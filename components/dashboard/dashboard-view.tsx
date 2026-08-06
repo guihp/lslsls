@@ -244,7 +244,7 @@ function ClientTaskGroup({
   onOpenClient: () => void;
   onRequestDelete: (task: Task) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const done = clientTasks.filter((t) => t.status === "done").length;
   const total = clientTasks.length;
   const complete = total > 0 && done === total;
