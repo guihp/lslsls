@@ -9,6 +9,7 @@ import {
   Gauge,
   ListTodo,
   LogOut,
+  ScrollText,
   Shield,
   User,
 } from "lucide-react";
@@ -16,15 +17,33 @@ import { signOut } from "@/app/actions/auth";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
-import type { SessionUser } from "@/lib/types";
+import type { ScreenKey, SessionUser } from "@/lib/types";
 import { canViewScreen } from "@/lib/permissions-client";
 
-const NAV = [
-  { href: "/clientes", key: "clientes" as const, icon: ListTodo, label: "Clientes" },
-  { href: "/dashboard", key: "dashboard" as const, icon: Gauge, label: "Dashboard" },
-  { href: "/documentos", key: "documentos" as const, icon: FileText, label: "Docs" },
-  { href: "/progresso", key: "progresso" as const, icon: ChartNoAxesColumn, label: "Progresso" },
-  { href: "/admin/usuarios", key: "admin" as const, icon: Shield, label: "Admin" },
+const NAV: {
+  href: string;
+  key: ScreenKey | "logs";
+  icon: typeof ListTodo;
+  label: string;
+  adminOnly?: boolean;
+}[] = [
+  { href: "/clientes", key: "clientes", icon: ListTodo, label: "Clientes" },
+  { href: "/dashboard", key: "dashboard", icon: Gauge, label: "Dashboard" },
+  { href: "/documentos", key: "documentos", icon: FileText, label: "Docs" },
+  {
+    href: "/progresso",
+    key: "progresso",
+    icon: ChartNoAxesColumn,
+    label: "Progresso",
+  },
+  { href: "/admin/usuarios", key: "admin", icon: Shield, label: "Admin" },
+  {
+    href: "/admin/logs",
+    key: "logs",
+    icon: ScrollText,
+    label: "Logs",
+    adminOnly: true,
+  },
 ];
 
 function NavPendingHint({ compact }: { compact?: boolean }) {
@@ -52,7 +71,11 @@ function NavLinks({
 }) {
   return (
     <>
-      {NAV.filter((item) => canViewScreen(session, item.key)).map((item) => {
+      {NAV.filter((item) =>
+        item.adminOnly
+          ? session.profile.is_admin
+          : canViewScreen(session, item.key as ScreenKey),
+      ).map((item) => {
         const active =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
