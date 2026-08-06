@@ -1,7 +1,6 @@
 import {
   addDays,
   endOfDay,
-  endOfWeek,
   format,
   isWithinInterval,
   parseISO,
@@ -24,10 +23,20 @@ export type ProgressTask = Pick<
   "points" | "due_date" | "status" | "completed_at"
 >;
 
+/**
+ * Work week: Monday → Saturday (Sunday is outside the week).
+ * New demands default `due_date` to this Saturday so they land in the current week.
+ */
 export function weekBounds(date = new Date()) {
   const start = startOfWeek(date, { weekStartsOn: 1 });
-  const end = endOfWeek(date, { weekStartsOn: 1 });
+  // endOfWeek with weekStartsOn:1 is Sunday; we use Saturday as week end.
+  const end = addDays(start, 5);
   return { start, end };
+}
+
+/** ISO date (yyyy-MM-dd) for the Saturday that closes the current work week. */
+export function weekEndDateISO(date = new Date()) {
+  return format(weekBounds(date).end, "yyyy-MM-dd");
 }
 
 export function formatWeekRange(date = new Date()) {
@@ -51,7 +60,8 @@ function inRange(dueDate: string, start: Date, end: Date) {
  * Weekly / period progress from task points.
  * - expected: sum of points for tasks in range
  * - completed: sum of points with status === "done" only (`doing` does not count)
- * - includeUndated: tasks without due_date (dashboard weekly backlog)
+ * - includeUndated: optional; weekly progress keeps this false so undated rows
+ *   cannot inflate expected (new demands default due_date to week-end Saturday)
  */
 export function calcProgress(
   tasks: ProgressTask[],
@@ -85,10 +95,14 @@ export function dailyProgress(tasks: ProgressTask[], date = new Date()) {
   });
 }
 
-/** Current-week set: due this week + undated tasks shown on the weekly dashboard. */
+/**
+ * Current-week set: tasks due Mon–Sat.
+ * Undated tasks are excluded so they cannot inflate expected; creation (and
+ * Nova demanda UI) default `due_date` to week-end Saturday so new work counts.
+ */
 export function weeklyProgress(tasks: ProgressTask[], date = new Date()) {
   const { start, end } = weekBounds(date);
-  return calcProgress(tasks, start, end, { includeUndated: true });
+  return calcProgress(tasks, start, end, { includeUndated: false });
 }
 
 export function lastWeeksProgress(
@@ -100,9 +114,8 @@ export function lastWeeksProgress(
   for (let i = 0; i < weeks; i++) {
     const ref = subWeeks(date, i);
     const { start, end } = weekBounds(ref);
-    // Undated backlog only belongs to the current week (i === 0).
     const snap = calcProgress(tasks, start, end, {
-      includeUndated: i === 0,
+      includeUndated: false,
     });
     results.push({
       start,

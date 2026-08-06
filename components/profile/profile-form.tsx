@@ -3,15 +3,39 @@
 import { signOut, updatePassword } from "@/app/actions/auth";
 import {
   removeAvatar,
+  saveAvatarPath,
   updateProfile,
-  uploadAvatar,
 } from "@/app/actions/profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AVATAR_ACCEPT,
+  prepareAvatarImage,
+  validateAvatarFile,
+} from "@/lib/image";
+import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import { Camera, Lock, Mail, Trash2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
+
+function uploadErrorMessage(message: string): string {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("row-level security") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("jwt")
+  ) {
+    return "Sem permissão para enviar a foto. Faça login novamente e tente de novo.";
+  }
+  if (normalized.includes("exceeded") || normalized.includes("too large")) {
+    return "A imagem excede o limite de tamanho do servidor.";
+  }
+  if (normalized.includes("failed to fetch") || normalized.includes("network")) {
+    return "Falha de conexão ao enviar a imagem. Verifique sua internet e tente novamente.";
+  }
+  return `Não foi possível enviar a foto: ${message}`;
+}
 
 export function ProfileForm({ profile }: { profile: Profile }) {
   const router = useRouter();
@@ -20,12 +44,55 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [uploading, setUploading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
+  const busy = pending || uploading;
 
   function flash(ok: string | null, err: string | null) {
     setMessage(ok);
     setError(err);
+  }
+
+  async function handleAvatarChange(file: File) {
+    const invalid = validateAvatarFile(file);
+    if (invalid) {
+      flash(null, invalid);
+      return;
+    }
+
+    setUploading(true);
+    flash("Enviando foto...", null);
+    try {
+      const { blob, contentType, extension } = await prepareAvatarImage(file);
+      const path = `${profile.id}/avatar-${Date.now()}.${extension}`;
+      const supabase = createClient();
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, blob, { contentType, upsert: true });
+
+      if (uploadError) {
+        flash(null, uploadErrorMessage(uploadError.message));
+        return;
+      }
+
+      const res = await saveAvatarPath(path);
+      if (res.error) {
+        flash(null, res.error);
+        return;
+      }
+
+      flash("Foto atualizada", null);
+      router.refresh();
+    } catch (err) {
+      flash(
+        null,
+        uploadErrorMessage(err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -51,29 +118,21 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             </div>
             <button
               type="button"
+              disabled={busy}
               onClick={() => fileRef.current?.click()}
-              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow dark:bg-zinc-700"
+              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow disabled:opacity-60 dark:bg-zinc-700"
             >
               <Camera className="h-4 w-4" />
             </button>
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
+              accept={AVATAR_ACCEPT}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (!file) return;
-                const fd = new FormData();
-                fd.set("avatar", file);
-                startTransition(async () => {
-                  const res = await uploadAvatar(fd);
-                  if (res.error) flash(null, res.error);
-                  else {
-                    flash("Foto atualizada", null);
-                    router.refresh();
-                  }
-                });
+                e.target.value = "";
+                if (file) void handleAvatarChange(file);
               }}
             />
           </div>
@@ -81,16 +140,16 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             <Button
               type="button"
               variant="secondary"
-              disabled={pending}
+              disabled={busy}
               onClick={() => fileRef.current?.click()}
             >
-              Alterar foto
+              {uploading ? "Enviando..." : "Alterar foto"}
             </Button>
             {profile.avatar_url ? (
               <button
                 type="button"
-                className="inline-flex items-center gap-1 text-sm text-red-500"
-                disabled={pending}
+                className="inline-flex items-center gap-1 text-sm text-red-500 disabled:opacity-60"
+                disabled={busy}
                 onClick={() =>
                   startTransition(async () => {
                     const res = await removeAvatar();
@@ -107,7 +166,8 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             ) : null}
           </div>
           <p className="text-xs text-zinc-500">
-            JPG, PNG, GIF ou WebP. Máximo 10MB.
+            JPG, PNG, GIF ou WebP. Máximo 10MB — a imagem é reduzida
+            automaticamente antes do envio.
           </p>
         </div>
       </section>
@@ -161,7 +221,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               {profile.is_admin ? " · Admin" : ""}
             </span>
           </div>
-          <Button type="submit" className="w-full" disabled={pending}>
+          <Button type="submit" className="w-full" disabled={busy}>
             Salvar alterações
           </Button>
         </form>
@@ -216,7 +276,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={busy}>
               Salvar
             </Button>
           </form>

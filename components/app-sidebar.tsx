@@ -7,9 +7,11 @@ import {
   FileText,
   Gauge,
   ListTodo,
+  LogOut,
   Shield,
   User,
 } from "lucide-react";
+import { signOut } from "@/app/actions/auth";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -66,6 +68,26 @@ function NavLinks({
   );
 }
 
+function SignOutButton({ compact }: { compact?: boolean }) {
+  return (
+    <form action={signOut}>
+      <button
+        type="submit"
+        title="Sair"
+        aria-label="Sair"
+        className={cn(
+          compact
+            ? "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium text-zinc-400 hover:text-orange-600"
+            : "flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-500/10 dark:hover:text-orange-400",
+        )}
+      >
+        <LogOut className="h-5 w-5" />
+        {compact ? <span className="truncate">Sair</span> : null}
+      </button>
+    </form>
+  );
+}
+
 export function AppSidebar({ session }: { session: SessionUser }) {
   const pathname = usePathname();
   const avatar = session.profile.avatar_url;
@@ -87,6 +109,7 @@ export function AppSidebar({ session }: { session: SessionUser }) {
         </nav>
 
         <div className="mt-auto flex flex-col items-center gap-2">
+          <SignOutButton />
           <ThemeToggle />
           <Link
             href="/perfil"
@@ -115,6 +138,7 @@ export function AppSidebar({ session }: { session: SessionUser }) {
           </span>
         </Link>
         <div className="flex items-center gap-1">
+          <SignOutButton />
           <ThemeToggle />
           <Link
             href="/perfil"
@@ -137,6 +161,7 @@ export function AppSidebar({ session }: { session: SessionUser }) {
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-orange-100 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur md:hidden dark:border-orange-500/15 dark:bg-zinc-950/95">
         <NavLinks session={session} pathname={pathname} compact />
+        <SignOutButton compact />
       </nav>
     </>
   );

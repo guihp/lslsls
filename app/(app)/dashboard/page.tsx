@@ -15,10 +15,11 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
   const userId = session.profile.id;
+  const isAdmin = session.profile.is_admin;
 
   const [{ data: tasks }, { data: clients }, { data: profiles }] =
     await Promise.all([
-      session.profile.is_admin
+      isAdmin
         ? supabase.from("tasks").select("*").order("position")
         : supabase
             .from("tasks")
@@ -29,9 +30,13 @@ export default async function DashboardPage() {
       supabase.from("profiles").select("id, full_name, avatar_url, job_title"),
     ]);
 
-  const myTasks = (tasks as Task[]) || [];
+  const allTasks = (tasks as Task[]) || [];
+  // Gauge "Sua meta" always uses only the current user's assignments —
+  // admins still see the team list, but expected must not include others.
+  const myTasks = allTasks.filter((t) => t.assignee_id === userId);
+  const visibleTasks = isAdmin ? allTasks : myTasks;
   const allClients = (clients as Client[]) || [];
-  const clientIds = new Set(myTasks.map((t) => t.client_id));
+  const clientIds = new Set(visibleTasks.map((t) => t.client_id));
   // Dashboard lista só clientes que já têm demanda — criar cliente ≠ task
   const relevantClients = allClients.filter((c) => clientIds.has(c.id));
 
@@ -42,7 +47,7 @@ export default async function DashboardPage() {
     <DashboardView
       clients={relevantClients}
       allClients={allClients}
-      tasks={myTasks}
+      tasks={visibleTasks}
       profiles={
         (profiles as Pick<
           Profile,
@@ -50,6 +55,7 @@ export default async function DashboardPage() {
         >[]) || []
       }
       canCreate={canCreateDemand(session)}
+      isAdmin={isAdmin}
       weekLabel={formatWeekRange()}
       dayLabel={`Dia ${workday.current}/${workday.total}`}
       weekly={week}

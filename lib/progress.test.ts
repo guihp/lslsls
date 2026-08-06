@@ -62,17 +62,46 @@ describe("progress", () => {
     expect(snap.completed).toBe(4);
   });
 
-  it("includes undated tasks in weekly expected and percent", () => {
+  it("excludes undated tasks from weekly expected (no inflation)", () => {
     const tasks = [
       task({ id: "1", points: 4, status: "done", due_date: null }),
       task({ id: "2", points: 6, status: "todo", due_date: null }),
       task({ id: "3", points: 2, status: "doing", due_date: "2026-08-06" }),
     ];
     const snap = weeklyProgress(tasks, new Date("2026-08-05"));
-    expect(snap.expected).toBe(12);
-    expect(snap.completed).toBe(4);
-    expect(snap.percent).toBe(33);
-    expect(snap.label).not.toBe("Sem meta");
+    expect(snap.expected).toBe(2);
+    expect(snap.completed).toBe(0);
+    expect(snap.percent).toBe(0);
+  });
+
+  it("week ends on Saturday (Sunday due dates are outside the week)", () => {
+    const tasks = [
+      task({ id: "1", points: 2, status: "todo", due_date: "2026-08-08" }), // Sat
+      task({ id: "2", points: 5, status: "todo", due_date: "2026-08-09" }), // Sun
+    ];
+    const snap = weeklyProgress(tasks, new Date("2026-08-05"));
+    expect(snap.expected).toBe(2);
+  });
+
+  it("personal filter prevents other assignees from inflating expected", () => {
+    const mine = [
+      task({ id: "1", points: 2, status: "todo", due_date: "2026-08-08", assignee_id: "u1" }),
+      task({ id: "2", points: 1, status: "todo", due_date: "2026-08-08", assignee_id: "u1" }),
+    ];
+    const other = task({
+      id: "3",
+      points: 1,
+      status: "todo",
+      due_date: "2026-08-05",
+      assignee_id: "u2",
+    });
+    expect(weeklyProgress([...mine, other], new Date("2026-08-05")).expected).toBe(4);
+    expect(weeklyProgress(mine, new Date("2026-08-05")).expected).toBe(3);
+  });
+
+  it("exports weekEndDateISO as Saturday of the current week", async () => {
+    const { weekEndDateISO } = await import("@/lib/progress");
+    expect(weekEndDateISO(new Date("2026-08-05"))).toBe("2026-08-08");
   });
 
   it("does not count doing as completed", () => {

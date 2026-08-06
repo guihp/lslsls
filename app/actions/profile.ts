@@ -20,32 +20,55 @@ export async function updateProfile(formData: FormData) {
   return { success: true };
 }
 
-export async function uploadAvatar(formData: FormData) {
+const AVATAR_FILE_NAME = /^avatar-\d+\.(jpg|jpeg|png|webp|gif|heic|heif)$/i;
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+async function deleteAvatarFiles(
+  supabase: SupabaseClient,
+  userId: string,
+  keep?: string,
+) {
+  const { data } = await supabase.storage.from("avatars").list(userId);
+  const stale = (data ?? [])
+    .map((entry) => `${userId}/${entry.name}`)
+    .filter((path) => path !== keep);
+  if (stale.length > 0) {
+    await supabase.storage.from("avatars").remove(stale);
+  }
+}
+
+/**
+ * The browser uploads the image straight to Supabase Storage, so this action
+ * only persists the resulting path — keeping the payload far below the Server
+ * Actions body size limit.
+ */
+export async function saveAvatarPath(path: string) {
   const session = await requireUser();
-  const file = formData.get("avatar") as File | null;
-  if (!file || file.size === 0) return { error: "Selecione uma imagem" };
-  if (file.size > 10 * 1024 * 1024) return { error: "Máximo 10MB" };
+  const userId = session.profile.id;
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${session.profile.id}/avatar.${ext}`;
+  const [folder, fileName, ...rest] = path.split("/");
+  if (
+    folder !== userId ||
+    rest.length > 0 ||
+    !AVATAR_FILE_NAME.test(fileName ?? "")
+  ) {
+    return { error: "Caminho de imagem inválido" };
+  }
+
   const supabase = await createClient();
-
-  const { error: uploadError } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type });
-
-  if (uploadError) return { error: uploadError.message };
-
   const {
     data: { publicUrl },
   } = supabase.storage.from("avatars").getPublicUrl(path);
 
   const { error } = await supabase
     .from("profiles")
-    .update({ avatar_url: `${publicUrl}?t=${Date.now()}` })
-    .eq("id", session.profile.id);
+    .update({ avatar_url: publicUrl })
+    .eq("id", userId);
 
   if (error) return { error: error.message };
+
+  await deleteAvatarFiles(supabase, userId, path);
   revalidatePath("/perfil");
   revalidatePath("/", "layout");
   return { success: true };
@@ -55,12 +78,7 @@ export async function removeAvatar() {
   const session = await requireUser();
   const supabase = await createClient();
 
-  await supabase.storage.from("avatars").remove([
-    `${session.profile.id}/avatar.jpg`,
-    `${session.profile.id}/avatar.png`,
-    `${session.profile.id}/avatar.webp`,
-    `${session.profile.id}/avatar.gif`,
-  ]);
+  await deleteAvatarFiles(supabase, session.profile.id);
 
   const { error } = await supabase
     .from("profiles")

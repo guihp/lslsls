@@ -15,11 +15,12 @@ export default async function ProgressoPage() {
   if (!canViewScreen(session, "progresso")) redirect("/perfil");
 
   const supabase = await createClient();
-  const query = session.profile.is_admin
-    ? supabase.from("tasks").select("*")
-    : supabase.from("tasks").select("*").eq("assignee_id", session.profile.id);
+  // Personal progress only — even admins measure their own assignments here.
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("assignee_id", session.profile.id);
 
-  const { data: tasks } = await query;
   const list = (tasks as Task[]) || [];
   const weekly = weeklyProgress(list);
   const history = lastWeeksProgress(list, 4);

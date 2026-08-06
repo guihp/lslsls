@@ -1,6 +1,7 @@
 "use server";
 
 import { canCreateDemand, requireUser } from "@/lib/auth";
+import { weekEndDateISO } from "@/lib/progress";
 import { createClient } from "@/lib/supabase/server";
 import type { TaskStatus } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -22,8 +23,15 @@ export async function createTask(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const assigneeId = String(formData.get("assignee_id") || "") || null;
   const sprintId = String(formData.get("sprint_id") || "") || null;
-  const points = Number(formData.get("points") || 1);
-  const dueDate = String(formData.get("due_date") || "") || null;
+  // Points field removed from Nova demanda UI — default to 1.
+  const rawPoints = formData.get("points");
+  const points =
+    rawPoints === null || rawPoints === ""
+      ? 1
+      : Number(rawPoints);
+  // Prefill / fallback: Saturday that closes the current work week (Mon–Sat).
+  const dueDate =
+    String(formData.get("due_date") || "").trim() || weekEndDateISO();
 
   if (!clientId || !title) return { error: "Cliente e título obrigatórios" };
 
