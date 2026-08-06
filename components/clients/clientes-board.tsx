@@ -1,11 +1,12 @@
 "use client";
 
-import { createClientRecord } from "@/app/actions/clients";
+import { createClientRecord, updateClient } from "@/app/actions/clients";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isOverdue } from "@/lib/progress";
 import {
+  boardClientStatus,
   CLIENT_STATUS_META,
   CLIENT_STATUS_ORDER,
   type Client,
@@ -13,31 +14,30 @@ import {
   type Profile,
   type Task,
 } from "@/lib/types";
-import { formatDateBR } from "@/lib/utils";
+import { cn, formatDateBR } from "@/lib/utils";
 import {
   Check,
-  ChevronDown,
-  ChevronRight,
   Filter,
   FlaskConical,
   Folder,
-  Megaphone,
   Plus,
   Rocket,
   Search,
   Settings,
-  Wrench,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import {
+  useMemo,
+  useState,
+  useTransition,
+  type DragEvent,
+} from "react";
 
 const ICONS = {
   rocket: Rocket,
-  megaphone: Megaphone,
   folder: Folder,
-  wrench: Wrench,
   flask: FlaskConical,
   settings: Settings,
   check: Check,
@@ -46,7 +46,6 @@ const ICONS = {
 
 export function ClientesBoard({
   clients,
-  tasks,
   profiles,
   canCreate,
 }: {
@@ -56,11 +55,14 @@ export function ClientesBoard({
   canCreate: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState<Record<string, boolean>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<ClientStatus | null>(
+    null,
+  );
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const profileMap = useMemo(
     () => new Map(profiles.map((p) => [p.id, p])),
@@ -77,15 +79,58 @@ export function ClientesBoard({
     const map = Object.fromEntries(
       CLIENT_STATUS_ORDER.map((s) => [s, [] as Client[]]),
     ) as Record<ClientStatus, Client[]>;
-    for (const c of visibleClients) map[c.status].push(c);
+    for (const c of visibleClients) {
+      map[boardClientStatus(c.status)].push(c);
+    }
     return map;
   }, [visibleClients]);
 
+  function moveClient(clientId: string, status: ClientStatus) {
+    if (!canCreate) return;
+    const client = clients.find((c) => c.id === clientId);
+    if (!client || boardClientStatus(client.status) === status) return;
+    startTransition(async () => {
+      await updateClient(clientId, { status });
+      router.refresh();
+    });
+  }
+
+  function onCardDragStart(e: DragEvent, clientId: string) {
+    if (!canCreate) return;
+    e.dataTransfer.setData("text/plain", clientId);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingId(clientId);
+  }
+
+  function onCardDragEnd() {
+    setDraggingId(null);
+    setDragOverStatus(null);
+  }
+
+  function onColumnDragOver(e: DragEvent, status: ClientStatus) {
+    if (!canCreate) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverStatus !== status) setDragOverStatus(status);
+  }
+
+  function onColumnDrop(e: DragEvent, status: ClientStatus) {
+    if (!canCreate) return;
+    e.preventDefault();
+    const clientId = e.dataTransfer.getData("text/plain");
+    setDragOverStatus(null);
+    setDraggingId(null);
+    if (clientId) moveClient(clientId, status);
+  }
+
   return (
-    <div className="overflow-x-hidden px-4 py-6 sm:px-6">
+    <div className="flex min-h-0 flex-1 flex-col px-4 py-6 sm:px-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="text-sm text-zinc-500">
-          Listas &gt; <span className="font-medium text-zinc-900 dark:text-white">Clientes</span>
+          Listas &gt;{" "}
+          <span className="font-medium text-zinc-900 dark:text-white">
+            Clientes
+          </span>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button
@@ -104,18 +149,15 @@ export function ClientesBoard({
             />
           </div>
           {canCreate ? (
-            <Button type="button" className="w-full sm:w-auto" onClick={() => setShowCreate(true)}>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => setShowCreate(true)}
+            >
               <Plus className="h-4 w-4" /> Novo Cliente
             </Button>
           ) : null}
         </div>
-      </div>
-
-      <div className="mb-3 hidden grid-cols-[1fr_180px_140px_140px] gap-3 px-4 text-xs font-medium uppercase tracking-wide text-zinc-400 lg:grid">
-        <span>Cliente</span>
-        <span>Responsável</span>
-        <span>Criado em</span>
-        <span>Status</span>
       </div>
 
       {visibleClients.length === 0 ? (
@@ -135,95 +177,112 @@ export function ClientesBoard({
           }
         />
       ) : (
-        <div className="space-y-2">
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6">
           {CLIENT_STATUS_ORDER.map((status) => {
             const items = grouped[status];
             const meta = CLIENT_STATUS_META[status];
             const Icon = ICONS[meta.icon as keyof typeof ICONS] || Folder;
-            const isOpen = open[status] ?? false;
             const overdue = items.filter((c) =>
               isOverdue(c.deadline, c.status),
             ).length;
             const noResp = items.filter((c) => !c.responsible_id).length;
+            const isDropTarget = dragOverStatus === status;
 
             return (
-              <div
+              <section
                 key={status}
-                className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+                className={cn(
+                  "flex w-[min(85vw,280px)] shrink-0 flex-col rounded-2xl border bg-zinc-50/80 dark:bg-zinc-900/40",
+                  isDropTarget
+                    ? "border-orange-400 ring-2 ring-orange-400/30"
+                    : "border-zinc-200 dark:border-zinc-800",
+                )}
+                onDragOver={(e) => onColumnDragOver(e, status)}
+                onDragLeave={() => {
+                  if (dragOverStatus === status) setDragOverStatus(null);
+                }}
+                onDrop={(e) => onColumnDrop(e, status)}
               >
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left"
-                  onClick={() =>
-                    setOpen((prev) => ({ ...prev, [status]: !isOpen }))
-                  }
-                >
-                  {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-zinc-400" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-zinc-400" />
-                  )}
-                  <span
-                    className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-white"
-                    style={{ backgroundColor: meta.color }}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {meta.label.toUpperCase()}
-                  </span>
-                  <span className="text-sm text-zinc-500">{items.length}</span>
-                  <div className="ml-auto flex items-center gap-2">
-                    {overdue > 0 ? (
-                      <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs text-red-500">
-                        {overdue} atrasado{overdue > 1 ? "s" : ""}
-                      </span>
-                    ) : null}
-                    {noResp > 0 ? (
-                      <span className="rounded-full bg-zinc-500/15 px-2 py-0.5 text-xs text-zinc-400">
-                        {noResp} sem resp.
-                      </span>
-                    ) : null}
+                <header className="sticky top-0 z-[1] space-y-2 border-b border-zinc-200/80 px-3 py-3 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white"
+                      style={{ backgroundColor: meta.color }}
+                    >
+                      <Icon className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{meta.label}</span>
+                    </span>
+                    <span className="text-sm tabular-nums text-zinc-500">
+                      {items.length}
+                    </span>
                   </div>
-                </button>
+                  {(overdue > 0 || noResp > 0) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {overdue > 0 ? (
+                        <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] text-red-500">
+                          {overdue} atrasado{overdue > 1 ? "s" : ""}
+                        </span>
+                      ) : null}
+                      {noResp > 0 ? (
+                        <span className="rounded-full bg-zinc-500/15 px-2 py-0.5 text-[11px] text-zinc-400">
+                          {noResp} sem resp.
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
+                </header>
 
-                {isOpen ? (
-                  items.length === 0 ? (
-                    <p className="px-4 pb-4 text-sm text-zinc-500">
-                      Nenhum item neste status.
+                <div className="flex max-h-[min(70vh,720px)] flex-col gap-2 overflow-y-auto p-2">
+                  {items.length === 0 ? (
+                    <p className="px-2 py-6 text-center text-xs text-zinc-400">
+                      Nenhum cliente
                     </p>
                   ) : (
-                    <div className="border-t border-zinc-100 dark:border-zinc-900">
-                      {items.map((client) => {
-                        const responsible = client.responsible_id
-                          ? profileMap.get(client.responsible_id)
-                          : null;
-                        return (
-                          <Link
-                            key={client.id}
-                            href={`/clientes/${client.id}`}
-                            className="grid gap-2 border-b border-zinc-100 px-4 py-3 text-sm last:border-0 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-900/50 lg:grid-cols-[1fr_180px_140px_140px]"
-                          >
-                            <span className="font-medium">{client.name}</span>
-                            <span className="text-zinc-500">
-                              {responsible?.full_name || "—"}
-                            </span>
-                            <span className="text-zinc-500">
+                    items.map((client) => {
+                      const responsible = client.responsible_id
+                        ? profileMap.get(client.responsible_id)
+                        : null;
+                      const overdueCard = isOverdue(
+                        client.deadline,
+                        client.status,
+                      );
+                      return (
+                        <Link
+                          key={client.id}
+                          href={`/clientes/${client.id}`}
+                          draggable={canCreate}
+                          onDragStart={(e) => onCardDragStart(e, client.id)}
+                          onDragEnd={onCardDragEnd}
+                          className={cn(
+                            "block rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700",
+                            canCreate && "cursor-grab active:cursor-grabbing",
+                            draggingId === client.id && "opacity-50",
+                            overdueCard && "border-l-4 border-l-red-500",
+                          )}
+                        >
+                          <p className="font-medium leading-snug text-zinc-900 dark:text-white">
+                            {client.name}
+                          </p>
+                          <p className="mt-2 truncate text-xs text-zinc-500">
+                            {responsible?.full_name || "Sem responsável"}
+                          </p>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-zinc-400">
                               {formatDateBR(client.created_at.slice(0, 10))}
                             </span>
-                            <span>
-                              <span
-                                className="rounded-full px-2 py-0.5 text-xs text-white"
-                                style={{ backgroundColor: meta.color }}
-                              >
-                                {meta.label}
-                              </span>
+                            <span
+                              className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                              style={{ backgroundColor: meta.color }}
+                            >
+                              {meta.label}
                             </span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : null}
-              </div>
+                          </div>
+                        </Link>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
             );
           })}
         </div>

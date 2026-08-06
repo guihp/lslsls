@@ -94,7 +94,11 @@ export async function updateClient(
   return { success: true };
 }
 
-export async function createSprint(clientId: string, name: string) {
+export async function createSprint(
+  clientId: string,
+  name: string,
+  opts?: { start_date?: string | null; end_date?: string | null },
+) {
   const session = await requireUser();
   if (!canCreateDemand(session)) return { error: "Sem permissão" };
 
@@ -109,13 +113,20 @@ export async function createSprint(clientId: string, name: string) {
     .insert({
       client_id: clientId,
       name: name || `Sprint ${String((count || 0) + 1).padStart(2, "0")}`,
+      start_date: opts?.start_date ?? null,
+      end_date: opts?.end_date ?? null,
       position: count || 0,
     })
     .select("id")
     .single();
 
   if (error) return { error: error.message };
-  await log(clientId, "sprint_created", { sprint_id: data.id, name });
+  await log(clientId, "sprint_created", {
+    sprint_id: data.id,
+    name,
+    start_date: opts?.start_date ?? null,
+    end_date: opts?.end_date ?? null,
+  });
   revalidatePath(`/clientes/${clientId}`);
   revalidatePath("/dashboard");
   return { success: true, id: data.id };

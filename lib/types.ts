@@ -11,16 +11,19 @@ export type ClientStatus =
 export type TaskStatus = "todo" | "doing" | "done";
 export type DocumentVisibility = "todos" | "admin";
 
-/** Cycle: todo → doing (em andamento) → done → todo */
+/** Cycle: todo → doing → done → todo */
 export function nextTaskStatus(status: TaskStatus): TaskStatus {
   if (status === "todo") return "doing";
   if (status === "doing") return "done";
   return "todo";
 }
 
+/** UI order for the status chooser menu */
+export const TASK_STATUS_OPTIONS: TaskStatus[] = ["todo", "doing", "done"];
+
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  todo: "A fazer",
-  doing: "Em andamento",
+  todo: "Não iniciada",
+  doing: "A fazer",
   done: "Concluída",
 };
 
@@ -73,6 +76,10 @@ export type Sprint = {
   id: string;
   client_id: string;
   name: string;
+  /** Work-week Monday (yyyy-MM-dd), when this is a week sprint */
+  start_date: string | null;
+  /** Work-week Saturday (yyyy-MM-dd), when this is a week sprint */
+  end_date: string | null;
   position: number;
   created_at: string;
 };
@@ -159,13 +166,37 @@ export const CLIENT_STATUS_META: Record<
   cancelado: { label: "Cancelado", color: "#ef4444", icon: "x" },
 };
 
+/**
+ * Pipeline columns / create & filter options for /clientes.
+ * kickoff and execucao remain valid DB enum values but are hidden from the board.
+ */
 export const CLIENT_STATUS_ORDER: ClientStatus[] = [
   "oportunidade",
-  "kickoff",
   "aguardando_informacoes",
-  "execucao",
   "testes",
   "melhorias",
   "finalizado",
   "cancelado",
 ];
+
+/**
+ * Map removed pipeline statuses into a visible board column so clients
+ * are not orphaned when kickoff/execucao columns are hidden.
+ * kickoff → oportunidade (early stage)
+ * execucao → testes (active delivery → nearest active column)
+ */
+export function boardClientStatus(status: ClientStatus): ClientStatus {
+  if (status === "kickoff") return "oportunidade";
+  if (status === "execucao") return "testes";
+  return status;
+}
+
+/** Select options: board order, plus current value if it is a legacy status. */
+export function clientStatusSelectOptions(
+  current: ClientStatus,
+): ClientStatus[] {
+  if ((CLIENT_STATUS_ORDER as ClientStatus[]).includes(current)) {
+    return CLIENT_STATUS_ORDER;
+  }
+  return [current, ...CLIENT_STATUS_ORDER];
+}

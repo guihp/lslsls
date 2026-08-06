@@ -2,6 +2,7 @@
 
 import { canCreateDemand, requireUser } from "@/lib/auth";
 import { weekEndDateISO } from "@/lib/progress";
+import { ensureWeekSprint } from "@/lib/sprints";
 import { createClient } from "@/lib/supabase/server";
 import type { TaskStatus } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -22,7 +23,7 @@ export async function createTask(formData: FormData) {
   const clientId = String(formData.get("client_id") || "");
   const title = String(formData.get("title") || "").trim();
   const assigneeId = String(formData.get("assignee_id") || "") || null;
-  const sprintId = String(formData.get("sprint_id") || "") || null;
+  let sprintId = String(formData.get("sprint_id") || "") || null;
   // Points field removed from Nova demanda UI — default to 1.
   const rawPoints = formData.get("points");
   const points =
@@ -36,6 +37,16 @@ export async function createTask(formData: FormData) {
   if (!clientId || !title) return { error: "Cliente e título obrigatórios" };
 
   const supabase = await createClient();
+
+  // Dashboard "Nova demanda" / "Adicionar tarefa" omit sprint_id — attach to
+  // the client's Mon–Sat week sprint (create if missing). Explicit sprint_id
+  // from client detail is preserved.
+  if (!sprintId) {
+    const ensured = await ensureWeekSprint(supabase, clientId, dueDate);
+    if ("error" in ensured) return { error: ensured.error };
+    sprintId = ensured.id;
+  }
+
   const { count } = await supabase
     .from("tasks")
     .select("*", { count: "exact", head: true })
@@ -57,7 +68,12 @@ export async function createTask(formData: FormData) {
     .single();
 
   if (error) return { error: error.message };
-  await log(clientId, "task_created", { task_id: data.id, title, assignee_id: assigneeId });
+  await log(clientId, "task_created", {
+    task_id: data.id,
+    title,
+    assignee_id: assigneeId,
+    sprint_id: sprintId,
+  });
   revalidatePath("/dashboard");
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${clientId}`);

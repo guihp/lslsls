@@ -6,7 +6,7 @@ import {
   workdayIndex,
 } from "@/lib/progress";
 import { createClient } from "@/lib/supabase/server";
-import type { Client, Profile, Task } from "@/lib/types";
+import type { Client, Profile, Sprint, Task } from "@/lib/types";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const userId = session.profile.id;
   const isAdmin = session.profile.is_admin;
 
-  const [{ data: tasks }, { data: clients }, { data: profiles }] =
+  const [{ data: tasks }, { data: clients }, { data: profiles }, { data: sprints }] =
     await Promise.all([
       isAdmin
         ? supabase.from("tasks").select("*").order("position")
@@ -28,6 +28,7 @@ export default async function DashboardPage() {
             .order("position"),
       supabase.from("clients").select("*").order("name"),
       supabase.from("profiles").select("id, full_name, avatar_url, job_title"),
+      supabase.from("sprints").select("*").order("position"),
     ]);
 
   const allTasks = (tasks as Task[]) || [];
@@ -48,6 +49,7 @@ export default async function DashboardPage() {
       clients={relevantClients}
       allClients={allClients}
       tasks={visibleTasks}
+      sprints={(sprints as Sprint[]) || []}
       profiles={
         (profiles as Pick<
           Profile,

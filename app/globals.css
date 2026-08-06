@@ -18,6 +18,51 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Theme switch: smooth bg/color/border — not transition-all on * */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    transition: background-color 240ms ease, color 240ms ease;
+  }
+
+  body,
+  header,
+  aside,
+  nav,
+  main,
+  footer,
+  [data-slot="dialog-overlay"],
+  [data-slot="sheet-overlay"] {
+    transition:
+      background-color 240ms ease,
+      color 240ms ease,
+      border-color 240ms ease,
+      box-shadow 240ms ease;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 220ms;
+    animation-timing-function: ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body,
+  header,
+  aside,
+  nav,
+  main,
+  footer {
+    transition: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

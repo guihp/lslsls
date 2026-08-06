@@ -7,18 +7,14 @@ import {
 } from "@/app/actions/clients";
 import { createComment } from "@/app/actions/comments";
 import { createTask, toggleTaskStatus } from "@/app/actions/tasks";
-import {
-  TaskStatusIcon,
-  taskTitleClassName,
-} from "@/components/task-status-icon";
+import { TaskStatusMenu } from "@/components/task-status-menu";
+import { taskTitleClassName } from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CLIENT_STATUS_META,
-  CLIENT_STATUS_ORDER,
-  nextTaskStatus,
-  TASK_STATUS_LABEL,
+  clientStatusSelectOptions,
   type ActivityLog,
   type Attachment,
   type Client,
@@ -136,7 +132,7 @@ export function ClientDetailView({
                 });
               }}
             >
-              {CLIENT_STATUS_ORDER.map((s) => (
+              {clientStatusSelectOptions(client.status).map((s) => (
                 <option key={s} value={s}>
                   {CLIENT_STATUS_META[s].label}
                 </option>
@@ -312,7 +308,13 @@ export function ClientDetailView({
                   <span className="font-medium">
                     {sprint.name} ({sprintTasks.length} tasks)
                   </span>
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800">
+                  <span
+                    className={
+                      sprint.start_date && sprint.end_date
+                        ? "rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-300"
+                        : "rounded-full bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800"
+                    }
+                  >
                     Sprint
                   </span>
                 </button>
@@ -327,25 +329,16 @@ export function ClientDetailView({
                           key={task.id}
                           className="flex items-center gap-3 rounded-lg px-2 py-2"
                         >
-                          <button
-                            type="button"
-                            title={TASK_STATUS_LABEL[task.status]}
-                            aria-label={TASK_STATUS_LABEL[task.status]}
-                            onClick={() =>
+                          <TaskStatusMenu
+                            status={task.status}
+                            disabled={pending}
+                            onSelect={(next) =>
                               startTransition(async () => {
-                                await toggleTaskStatus(
-                                  task.id,
-                                  nextTaskStatus(task.status),
-                                );
+                                await toggleTaskStatus(task.id, next);
                                 refresh();
                               })
                             }
-                          >
-                            <TaskStatusIcon
-                              status={task.status}
-                              className="h-5 w-5"
-                            />
-                          </button>
+                          />
                           <span className={taskTitleClassName(task.status)}>
                             {String(idx + 1).padStart(2, "0")}. {task.title}
                           </span>
@@ -435,25 +428,18 @@ export function ClientDetailView({
               <p className="mb-2 text-sm font-medium">Sem sprint</p>
               {(tasksBySprint.get(null) || []).map((task) => (
                 <div key={task.id} className="flex items-center gap-2 py-1 text-sm">
-                  <button
-                    type="button"
-                    title={TASK_STATUS_LABEL[task.status]}
-                    aria-label={TASK_STATUS_LABEL[task.status]}
-                    onClick={() =>
+                  <TaskStatusMenu
+                    status={task.status}
+                    disabled={pending}
+                    iconClassName="h-4 w-4"
+                    buttonClassName="h-8 w-8"
+                    onSelect={(next) =>
                       startTransition(async () => {
-                        await toggleTaskStatus(
-                          task.id,
-                          nextTaskStatus(task.status),
-                        );
+                        await toggleTaskStatus(task.id, next);
                         refresh();
                       })
                     }
-                  >
-                    <TaskStatusIcon
-                      status={task.status}
-                      className="h-4 w-4"
-                    />
-                  </button>
+                  />
                   {task.title}
                 </div>
               ))}

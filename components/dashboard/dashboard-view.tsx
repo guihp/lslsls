@@ -8,20 +8,17 @@ import {
 import { ClientDetailDrawer } from "@/components/clients/client-detail-drawer";
 import { EmptyState } from "@/components/empty-state";
 import { ProgressGauge } from "@/components/progress-gauge";
-import {
-  TaskStatusIcon,
-  taskTitleClassName,
-} from "@/components/task-status-icon";
+import { TaskStatusMenu } from "@/components/task-status-menu";
+import { taskTitleClassName } from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ProgressSnapshot } from "@/lib/progress";
 import { weekEndDateISO } from "@/lib/progress";
 import { createClient } from "@/lib/supabase/client";
 import {
-  nextTaskStatus,
-  TASK_STATUS_LABEL,
   type Client,
   type Profile,
+  type Sprint,
   type Task,
 } from "@/lib/types";
 import { cn, formatDateBR } from "@/lib/utils";
@@ -170,6 +167,7 @@ function TaskEditForm({
 function ClientTaskGroup({
   client,
   clientTasks,
+  sprint,
   profiles,
   canCreate,
   showAssignee,
@@ -188,6 +186,7 @@ function ClientTaskGroup({
 }: {
   client: Client;
   clientTasks: Task[];
+  sprint: Sprint | null;
   profiles: ProfileLite[];
   canCreate: boolean;
   showAssignee: boolean;
@@ -238,6 +237,18 @@ function ClientTaskGroup({
             ({total} task{total === 1 ? "" : "s"})
           </span>
         </button>
+        {sprint ? (
+          <span
+            className="inline-flex max-w-[14rem] items-center gap-1 truncate rounded-full border border-orange-200 bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-300"
+            title={sprint.name}
+          >
+            <Rocket className="h-3 w-3 shrink-0" />
+            Sprint
+            <span className="truncate font-normal text-orange-600/80 dark:text-orange-400/80">
+              · {sprint.name}
+            </span>
+          </span>
+        ) : null}
         <span className="inline-flex items-center gap-1 text-sm text-zinc-500">
           <Rocket className="h-3.5 w-3.5" />
           {done}/{total || 0}
@@ -256,30 +267,19 @@ function ClientTaskGroup({
 
             return (
               <div key={task.id} className="rounded-lg px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                <div className="flex items-start gap-2 sm:gap-3">
-                  <button
-                    type="button"
-                    className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center"
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <TaskStatusMenu
+                    status={task.status}
                     disabled={pending}
-                    title={TASK_STATUS_LABEL[task.status]}
-                    aria-label={TASK_STATUS_LABEL[task.status]}
-                    onClick={() =>
+                    onSelect={(next) =>
                       startTransition(() => {
                         void (async () => {
-                          await toggleTaskStatus(
-                            task.id,
-                            nextTaskStatus(task.status),
-                          );
+                          await toggleTaskStatus(task.id, next);
                           router.refresh();
                         })();
                       })
                     }
-                  >
-                    <TaskStatusIcon
-                      status={task.status}
-                      className="h-5 w-5"
-                    />
-                  </button>
+                  />
                   <span
                     className={cn(
                       "min-w-0 flex-1 break-words",
@@ -388,6 +388,7 @@ export function DashboardView({
   clients,
   allClients,
   tasks,
+  sprints,
   profiles,
   canCreate,
   isAdmin = false,
@@ -399,6 +400,7 @@ export function DashboardView({
   clients: Client[];
   allClients: Client[];
   tasks: Task[];
+  sprints: Sprint[];
   profiles: ProfileLite[];
   canCreate: boolean;
   isAdmin?: boolean;
@@ -433,6 +435,29 @@ export function DashboardView({
       void supabase.removeChannel(channel);
     };
   }, [router]);
+
+  const sprintById = useMemo(() => {
+    const map = new Map<string, Sprint>();
+    for (const s of sprints) map.set(s.id, s);
+    return map;
+  }, [sprints]);
+
+  function sprintForTasks(list: Task[]): Sprint | null {
+    const counts = new Map<string, number>();
+    for (const t of list) {
+      if (!t.sprint_id) continue;
+      counts.set(t.sprint_id, (counts.get(t.sprint_id) || 0) + 1);
+    }
+    let bestId: string | null = null;
+    let bestCount = 0;
+    for (const [id, n] of counts) {
+      if (n > bestCount) {
+        bestId = id;
+        bestCount = n;
+      }
+    }
+    return bestId ? sprintById.get(bestId) || null : null;
+  }
 
   const myTasks = useMemo(
     () => tasks.filter((t) => t.assignee_id === currentUserId),
@@ -628,6 +653,7 @@ export function DashboardView({
                       key={client.id}
                       client={client}
                       clientTasks={byClientMine.get(client.id) || []}
+                      sprint={sprintForTasks(byClientMine.get(client.id) || [])}
                       showAssignee={false}
                       onOpenClient={() => setDrawerClientId(client.id)}
                       {...sharedRowProps}
@@ -652,6 +678,7 @@ export function DashboardView({
                       key={client.id}
                       client={client}
                       clientTasks={byClientOther.get(client.id) || []}
+                      sprint={sprintForTasks(byClientOther.get(client.id) || [])}
                       showAssignee
                       onOpenClient={() => setDrawerClientId(client.id)}
                       {...sharedRowProps}
@@ -700,6 +727,7 @@ export function DashboardView({
                     key={client.id}
                     client={client}
                     clientTasks={byClientMine.get(client.id) || []}
+                    sprint={sprintForTasks(byClientMine.get(client.id) || [])}
                     showAssignee={false}
                     onOpenClient={() => setDrawerClientId(client.id)}
                     {...sharedRowProps}
