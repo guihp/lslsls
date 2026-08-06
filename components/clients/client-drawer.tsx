@@ -5,6 +5,17 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+/**
+ * Full-viewport client drawer.
+ *
+ * MUST portal to document.body. App Router `template.tsx` wraps pages in
+ * `.route-enter`, whose animation uses `transform` + `animation-fill-mode: both`.
+ * That creates a containing block for `position: fixed`, so an in-tree drawer
+ * only covers the short content box (~657px) with a white gap below.
+ *
+ * Never render the overlay in-tree (SSR / pre-mount) — return null until the
+ * client portal target exists.
+ */
 export function ClientDrawer({
   children,
   closeHref = "/clientes",
@@ -19,6 +30,18 @@ export function ClientDrawer({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Lock body scroll while the drawer is open (portal covers viewport).
+  useEffect(() => {
+    if (!mounted) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mounted]);
+
+  if (!mounted) return null;
 
   const closeControl = onClose ? (
     <button
@@ -39,23 +62,29 @@ export function ClientDrawer({
     </Link>
   );
 
-  const panel = (
-    <div className="fixed inset-0 z-[60] flex h-dvh max-h-dvh justify-end">
-      {onClose ? (
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
-          aria-label="Fechar"
-        />
-      ) : (
-        <Link
-          href={closeHref}
-          className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
-          aria-label="Fechar"
-        />
-      )}
-      <div className="relative flex h-full min-h-0 w-full flex-col border-l border-zinc-200 bg-white shadow-2xl md:w-1/2 md:max-w-3xl dark:border-zinc-800 dark:bg-zinc-950">
+  const backdrop = onClose ? (
+    <button
+      type="button"
+      onClick={onClose}
+      className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+      aria-label="Fechar"
+    />
+  ) : (
+    <Link
+      href={closeHref}
+      className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+      aria-label="Fechar"
+    />
+  );
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex h-[100dvh] w-screen justify-end"
+      role="dialog"
+      aria-modal="true"
+    >
+      {backdrop}
+      <div className="relative z-10 flex h-[100dvh] max-h-[100dvh] w-full flex-col border-l border-zinc-200 bg-white shadow-2xl md:w-1/2 md:max-w-3xl dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex shrink-0 items-center justify-end border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           {closeControl}
         </div>
@@ -63,11 +92,7 @@ export function ClientDrawer({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
-
-  // Escape app shell `overflow-x-hidden` (clips fixed panels). SSR/first paint
-  // stays in-tree; after mount, portal to body so the drawer is full viewport.
-  if (!mounted) return panel;
-  return createPortal(panel, document.body);
 }

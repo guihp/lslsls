@@ -111,15 +111,16 @@ body {
   }
 }
 
-/* Soft route enter (App Router template.tsx remounts) */
+/* Soft route enter (App Router template.tsx remounts).
+   Opacity-only — NEVER use transform/filter here. A transformed ancestor
+   becomes the containing block for position:fixed descendants and clips
+   drawers/modals to the short content box instead of the viewport. */
 @keyframes route-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
