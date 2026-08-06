@@ -2,6 +2,7 @@
 
 import {
   createTask,
+  deleteTask,
   toggleTaskStatus,
   updateTask,
 } from "@/app/actions/tasks";
@@ -31,6 +32,7 @@ import {
   Pencil,
   Plus,
   Rocket,
+  Trash2,
   User,
 } from "lucide-react";
 import Link from "next/link";
@@ -293,17 +295,47 @@ function ClientTaskGroup({
                     {task.points} pts
                   </span>
                   {canCreate ? (
-                    <button
-                      type="button"
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-orange-600 dark:hover:bg-zinc-800"
-                      title="Editar demanda"
-                      aria-label="Editar demanda"
-                      onClick={() =>
-                        setEditingId(isEditing ? null : task.id)
-                      }
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-orange-600 dark:hover:bg-zinc-800"
+                        title="Editar demanda"
+                        aria-label="Editar demanda"
+                        onClick={() =>
+                          setEditingId(isEditing ? null : task.id)
+                        }
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
+                        title="Excluir demanda"
+                        aria-label="Excluir demanda"
+                        disabled={pending}
+                        onClick={() => {
+                          if (
+                            !window.confirm(
+                              `Excluir a demanda "${task.title}"? Esta ação não pode ser desfeita.`,
+                            )
+                          ) {
+                            return;
+                          }
+                          startTransition(() => {
+                            void (async () => {
+                              const res = await deleteTask(task.id);
+                              if (res.error) setError(res.error);
+                              else {
+                                if (editingId === task.id) setEditingId(null);
+                                router.refresh();
+                              }
+                            })();
+                          });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
                   ) : null}
                 </div>
                 {isEditing ? (

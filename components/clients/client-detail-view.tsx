@@ -6,7 +6,7 @@ import {
   uploadAttachment,
 } from "@/app/actions/clients";
 import { createComment } from "@/app/actions/comments";
-import { createTask, toggleTaskStatus } from "@/app/actions/tasks";
+import { createTask, deleteTask, toggleTaskStatus } from "@/app/actions/tasks";
 import { TaskStatusMenu } from "@/components/task-status-menu";
 import { taskTitleClassName } from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   ChevronDown,
   Paperclip,
   Plus,
+  Trash2,
   User,
 } from "lucide-react";
 import Link from "next/link";
@@ -339,7 +340,7 @@ export function ClientDetailView({
                               })
                             }
                           />
-                          <span className={taskTitleClassName(task.status)}>
+                          <span className={cn("min-w-0 flex-1", taskTitleClassName(task.status))}>
                             {String(idx + 1).padStart(2, "0")}. {task.title}
                           </span>
                           <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
@@ -350,6 +351,31 @@ export function ClientDetailView({
                               </span>
                             ) : null}
                             <span>{formatDateBR(task.due_date)}</span>
+                            {canCreate ? (
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
+                                title="Excluir demanda"
+                                aria-label="Excluir demanda"
+                                disabled={pending}
+                                onClick={() => {
+                                  if (
+                                    !window.confirm(
+                                      `Excluir a demanda "${task.title}"? Esta ação não pode ser desfeita.`,
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  startTransition(async () => {
+                                    const res = await deleteTask(task.id);
+                                    if (res.error) setError(res.error);
+                                    else refresh();
+                                  });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -440,7 +466,34 @@ export function ClientDetailView({
                       })
                     }
                   />
-                  {task.title}
+                  <span className={cn("min-w-0 flex-1", taskTitleClassName(task.status))}>
+                    {task.title}
+                  </span>
+                  {canCreate ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
+                      title="Excluir demanda"
+                      aria-label="Excluir demanda"
+                      disabled={pending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Excluir a demanda "${task.title}"? Esta ação não pode ser desfeita.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        startTransition(async () => {
+                          const res = await deleteTask(task.id);
+                          if (res.error) setError(res.error);
+                          else refresh();
+                        });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>
