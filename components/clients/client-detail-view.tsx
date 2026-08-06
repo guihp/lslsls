@@ -138,13 +138,12 @@ export function ClientDetailView({
   return (
     <div
       className={cn(
-        "grid",
         compact
-          ? "grid-cols-1"
-          : "min-h-screen lg:grid-cols-[1fr_360px]",
+          ? "flex flex-col"
+          : "grid min-h-screen lg:grid-cols-[1fr_360px]",
       )}
     >
-      <div className="overflow-x-hidden px-4 py-6 sm:px-6">
+      <div className={cn("px-4 py-6 sm:px-6", !compact && "overflow-x-hidden")}>
         <div className="mb-4 text-sm text-zinc-500">
           <Link href="/clientes" className="hover:underline">
             Projetos
@@ -552,10 +551,11 @@ export function ClientDetailView({
         className={cn(
           "bg-white dark:bg-zinc-950",
           compact
-            ? "border-t border-zinc-200 dark:border-zinc-800"
+            ? "border-t border-zinc-200 pb-6 dark:border-zinc-800"
             : "border-l border-zinc-200 dark:border-zinc-800",
         )}
-      >        <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+      >
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800">
           <button
             type="button"
             className={`flex-1 px-4 py-3 text-sm font-medium ${
@@ -583,9 +583,15 @@ export function ClientDetailView({
         <div
           className={cn(
             "flex flex-col",
-            compact ? "min-h-[420px]" : "h-[calc(100vh-49px)]",
+            !compact && "h-[calc(100vh-49px)]",
           )}
-        >          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        >
+          <div
+            className={cn(
+              "space-y-4 p-4",
+              compact ? "min-h-0" : "min-h-0 flex-1 overflow-y-auto",
+            )}
+          >
             {tab === "comentarios" ? (
               comments.length === 0 ? (
                 <p className="text-sm text-zinc-500">Nenhum comentário ainda.</p>
