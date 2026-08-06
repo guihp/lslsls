@@ -50,6 +50,30 @@ function profileById(profiles: ProfileLite[], id: string | null) {
   return profiles.find((p) => p.id === id) || null;
 }
 
+/** Prefer majority assignee in the group, then client responsible, then fallback. */
+function resolveDefaultAssigneeId(
+  clientTasks: Task[],
+  client: Client,
+  fallbackUserId: string,
+): string {
+  const counts = new Map<string, number>();
+  for (const t of clientTasks) {
+    if (!t.assignee_id) continue;
+    counts.set(t.assignee_id, (counts.get(t.assignee_id) || 0) + 1);
+  }
+  let bestId: string | null = null;
+  let bestCount = 0;
+  for (const [id, n] of counts) {
+    if (n > bestCount) {
+      bestId = id;
+      bestCount = n;
+    }
+  }
+  if (bestId) return bestId;
+  if (client.responsible_id) return client.responsible_id;
+  return fallbackUserId;
+}
+
 function AssigneeChip({ profile }: { profile: ProfileLite | null }) {
   if (!profile) {
     return (
@@ -182,6 +206,7 @@ function ClientTaskGroup({
   canManageTasks,
   showAssignee,
   currentUserId,
+  defaultAssigneeId,
   defaultDueDate,
   pending,
   startTransition,
@@ -204,6 +229,8 @@ function ClientTaskGroup({
   canManageTasks: boolean;
   showAssignee: boolean;
   currentUserId: string;
+  /** Who new tasks in this group are assigned to (group owner / majority assignee). */
+  defaultAssigneeId: string;
   defaultDueDate: string;
   pending: boolean;
   startTransition: (fn: () => void) => void;
@@ -221,6 +248,7 @@ function ClientTaskGroup({
   const done = clientTasks.filter((t) => t.status === "done").length;
   const total = clientTasks.length;
   const complete = total > 0 && done === total;
+  const assigneeForNew = defaultAssigneeId || currentUserId;
 
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
@@ -375,7 +403,7 @@ function ClientTaskGroup({
                 }}
               >
                 <Input name="title" placeholder="Título da tarefa" required />
-                <input type="hidden" name="assignee_id" value={currentUserId} />
+                <input type="hidden" name="assignee_id" value={assigneeForNew} />
                 <Input
                   name="due_date"
                   type="date"
@@ -721,18 +749,22 @@ export function DashboardView({
                 />
               ) : (
                 <div className="space-y-2">
-                  {myClients.map((client) => (
+                  {myClients.map((client) => {
+                    const groupTasks = byClientMine.get(client.id) || [];
+                    return (
                     <ClientTaskGroup
                       key={client.id}
                       client={client}
-                      clientTasks={byClientMine.get(client.id) || []}
-                      sprint={sprintForTasks(byClientMine.get(client.id) || [])}
+                      clientTasks={groupTasks}
+                      sprint={sprintForTasks(groupTasks)}
                       showAssignee={false}
                       canManageTasks
+                      defaultAssigneeId={currentUserId}
                       onOpenClient={() => setDrawerClientId(client.id)}
                       {...sharedRowProps}
                     />
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -747,18 +779,26 @@ export function DashboardView({
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {otherClients.map((client) => (
+                  {otherClients.map((client) => {
+                    const groupTasks = byClientOther.get(client.id) || [];
+                    return (
                     <ClientTaskGroup
                       key={client.id}
                       client={client}
-                      clientTasks={byClientOther.get(client.id) || []}
-                      sprint={sprintForTasks(byClientOther.get(client.id) || [])}
+                      clientTasks={groupTasks}
+                      sprint={sprintForTasks(groupTasks)}
                       showAssignee
                       canManageTasks={canCreate}
+                      defaultAssigneeId={resolveDefaultAssigneeId(
+                        groupTasks,
+                        client,
+                        currentUserId,
+                      )}
                       onOpenClient={() => setDrawerClientId(client.id)}
                       {...sharedRowProps}
                     />
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             ) : null}
@@ -797,18 +837,22 @@ export function DashboardView({
               />
             ) : (
               <div className="space-y-2">
-                {clients.map((client) => (
+                {clients.map((client) => {
+                  const groupTasks = byClientMine.get(client.id) || [];
+                  return (
                   <ClientTaskGroup
                     key={client.id}
                     client={client}
-                    clientTasks={byClientMine.get(client.id) || []}
-                    sprint={sprintForTasks(byClientMine.get(client.id) || [])}
+                    clientTasks={groupTasks}
+                    sprint={sprintForTasks(groupTasks)}
                     showAssignee={false}
                     canManageTasks
+                    defaultAssigneeId={currentUserId}
                     onOpenClient={() => setDrawerClientId(client.id)}
                     {...sharedRowProps}
                   />
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
