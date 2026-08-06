@@ -10,6 +10,7 @@ import { createTask, deleteTask, toggleTaskStatus } from "@/app/actions/tasks";
 import { TaskStatusMenu } from "@/components/task-status-menu";
 import { taskTitleClassName } from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -68,6 +69,14 @@ export function ClientDetailView({
   const [addingSprint, setAddingSprint] = useState<string | null>(null);
   const [openSprints, setOpenSprints] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const localTasks = useMemo(
+    () => tasks.filter((t) => !removedIds.has(t.id)),
+    [tasks, removedIds],
+  );
 
   const profileMap = useMemo(
     () => new Map(profiles.map((p) => [p.id, p])),
@@ -80,18 +89,45 @@ export function ClientDetailView({
 
   const tasksBySprint = useMemo(() => {
     const map = new Map<string | null, Task[]>();
-    for (const t of tasks) {
+    for (const t of localTasks) {
       const key = t.sprint_id;
       const list = map.get(key) || [];
       list.push(t);
       map.set(key, list);
     }
     return map;
-  }, [tasks]);
+  }, [localTasks]);
 
   function refresh() {
     router.refresh();
     onRefresh?.();
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+    const task = deleteTarget;
+    setDeleting(true);
+    setError(null);
+    setRemovedIds((prev) => new Set(prev).add(task.id));
+    setDeleteTarget(null);
+
+    const res = await deleteTask(task.id);
+    setDeleting(false);
+    if (res.error) {
+      setRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(task.id);
+        return next;
+      });
+      setError(res.error);
+      return;
+    }
+    void refresh();
+  }
+
+  function requestDelete(task: Task) {
+    setError(null);
+    setDeleteTarget(task);
   }
 
   return (
@@ -357,21 +393,8 @@ export function ClientDetailView({
                                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
                                 title="Excluir demanda"
                                 aria-label="Excluir demanda"
-                                disabled={pending}
-                                onClick={() => {
-                                  if (
-                                    !window.confirm(
-                                      `Excluir a demanda "${task.title}"? Esta ação não pode ser desfeita.`,
-                                    )
-                                  ) {
-                                    return;
-                                  }
-                                  startTransition(async () => {
-                                    const res = await deleteTask(task.id);
-                                    if (res.error) setError(res.error);
-                                    else refresh();
-                                  });
-                                }}
+                                disabled={pending || deleting}
+                                onClick={() => requestDelete(task)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -475,21 +498,8 @@ export function ClientDetailView({
                       className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
                       title="Excluir demanda"
                       aria-label="Excluir demanda"
-                      disabled={pending}
-                      onClick={() => {
-                        if (
-                          !window.confirm(
-                            `Excluir a demanda "${task.title}"? Esta ação não pode ser desfeita.`,
-                          )
-                        ) {
-                          return;
-                        }
-                        startTransition(async () => {
-                          const res = await deleteTask(task.id);
-                          if (res.error) setError(res.error);
-                          else refresh();
-                        });
-                      }}
+                      disabled={pending || deleting}
+                      onClick={() => requestDelete(task)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -643,6 +653,26 @@ export function ClientDetailView({
           ) : null}
         </div>
       </aside>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Excluir demanda"
+        message={
+          deleteTarget
+            ? `Excluir a demanda "${deleteTarget.title}"? Esta ação não pode ser desfeita.`
+            : ""
+        }
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        destructive
+        pending={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+      />
     </div>
   );
 }

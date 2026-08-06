@@ -163,17 +163,19 @@ export async function deleteTask(taskId: string) {
   }
 
   const supabase = await createClient();
-  const { data: task } = await supabase
+  // Single round-trip: delete + return row for logging/revalidation.
+  const { data: task, error } = await supabase
     .from("tasks")
-    .select("client_id, title")
+    .delete()
     .eq("id", taskId)
+    .select("client_id, title")
     .single();
 
-  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
   if (error) return { error: error.message };
 
+  // Activity log is best-effort — don't block the client on it.
   if (task) {
-    await log(task.client_id, "task_deleted", { title: task.title });
+    void log(task.client_id, "task_deleted", { title: task.title });
     revalidatePath(`/clientes/${task.client_id}`);
   }
   revalidatePath("/dashboard");

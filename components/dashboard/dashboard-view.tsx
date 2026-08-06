@@ -12,6 +12,7 @@ import { ProgressGauge } from "@/components/progress-gauge";
 import { TaskStatusMenu } from "@/components/task-status-menu";
 import { taskTitleClassName } from "@/components/task-status-icon";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import type { ProgressSnapshot } from "@/lib/progress";
 import { weekEndDateISO } from "@/lib/progress";
@@ -185,6 +186,7 @@ function ClientTaskGroup({
   setError,
   router,
   onOpenClient,
+  onRequestDelete,
 }: {
   client: Client;
   clientTasks: Task[];
@@ -204,6 +206,7 @@ function ClientTaskGroup({
   setError: (v: string | null) => void;
   router: ReturnType<typeof useRouter>;
   onOpenClient: () => void;
+  onRequestDelete: (task: Task) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const done = clientTasks.filter((t) => t.status === "done").length;
@@ -313,25 +316,7 @@ function ClientTaskGroup({
                         title="Excluir demanda"
                         aria-label="Excluir demanda"
                         disabled={pending}
-                        onClick={() => {
-                          if (
-                            !window.confirm(
-                              `Excluir a demanda "${task.title}"? Esta ação não pode ser desfeita.`,
-                            )
-                          ) {
-                            return;
-                          }
-                          startTransition(() => {
-                            void (async () => {
-                              const res = await deleteTask(task.id);
-                              if (res.error) setError(res.error);
-                              else {
-                                if (editingId === task.id) setEditingId(null);
-                                router.refresh();
-                              }
-                            })();
-                          });
-                        }}
+                        onClick={() => onRequestDelete(task)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -448,7 +433,15 @@ export function DashboardView({
   const [drawerClientId, setDrawerClientId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(() => new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const defaultDueDate = weekEndDateISO();
+
+  const localTasks = useMemo(
+    () => tasks.filter((t) => !removedIds.has(t.id)),
+    [tasks, removedIds],
+  );
 
   // Assignees see new/updated demands promptly without a manual refresh.
   useEffect(() => {
@@ -467,6 +460,29 @@ export function DashboardView({
       void supabase.removeChannel(channel);
     };
   }, [router]);
+
+  async function confirmDelete() {
+    if (!deleteTarget || deleting) return;
+    const task = deleteTarget;
+    setDeleting(true);
+    setError(null);
+    setRemovedIds((prev) => new Set(prev).add(task.id));
+    if (editingId === task.id) setEditingId(null);
+    setDeleteTarget(null);
+
+    const res = await deleteTask(task.id);
+    setDeleting(false);
+    if (res.error) {
+      setRemovedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(task.id);
+        return next;
+      });
+      setError(res.error);
+      return;
+    }
+    void router.refresh();
+  }
 
   const sprintById = useMemo(() => {
     const map = new Map<string, Sprint>();
@@ -492,15 +508,15 @@ export function DashboardView({
   }
 
   const myTasks = useMemo(
-    () => tasks.filter((t) => t.assignee_id === currentUserId),
-    [tasks, currentUserId],
+    () => localTasks.filter((t) => t.assignee_id === currentUserId),
+    [localTasks, currentUserId],
   );
   const otherTasks = useMemo(
     () =>
       isAdmin
-        ? tasks.filter((t) => t.assignee_id !== currentUserId)
+        ? localTasks.filter((t) => t.assignee_id !== currentUserId)
         : [],
-    [tasks, currentUserId, isAdmin],
+    [localTasks, currentUserId, isAdmin],
   );
 
   const byClientMine = useMemo(() => {
@@ -545,6 +561,10 @@ export function DashboardView({
     error,
     setError,
     router,
+    onRequestDelete: (task: Task) => {
+      setError(null);
+      setDeleteTarget(task);
+    },
   };
 
   return (
@@ -570,6 +590,15 @@ export function DashboardView({
           </Button>
         ) : null}
       </div>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+        >
+          {error}
+        </div>
+      ) : null}
 
       {canCreate && showNewTask ? (
         <form
@@ -726,7 +755,7 @@ export function DashboardView({
               <h2 className="text-lg font-semibold">Minhas Tarefas da Semana</h2>
               <div className="flex flex-wrap gap-3 text-sm text-zinc-500">
                 <span>{clients.length} clientes</span>
-                <span>{tasks.length} tasks</span>
+                <span>{myTasks.length} tasks</span>
                 <span>
                   {donePoints}/{totalPoints} pts
                 </span>
@@ -786,6 +815,26 @@ export function DashboardView({
           currentUserId={currentUserId}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Excluir demanda"
+        message={
+          deleteTarget
+            ? `Excluir a demanda "${deleteTarget.title}"? Esta ação não pode ser desfeita.`
+            : ""
+        }
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        destructive
+        pending={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+      />
     </div>
   );
 }
