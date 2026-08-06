@@ -99,7 +99,7 @@ export function AppSidebar({ session }: { session: SessionUser }) {
         <Link
           href="/dashboard"
           className="mb-6 flex h-11 w-11 items-center justify-center bg-transparent transition hover:scale-105"
-          title="IAFE"
+          title="IAFÉ Daily"
         >
           <BrandLogo size={44} className="bg-transparent" />
         </Link>
@@ -134,7 +134,7 @@ export function AppSidebar({ session }: { session: SessionUser }) {
         <Link href="/dashboard" className="flex items-center gap-2 bg-transparent">
           <BrandLogo size={32} className="bg-transparent" />
           <span className="text-sm font-semibold text-zinc-900 dark:text-white">
-            IAFE Daily
+            IAFÉ Daily
           </span>
         </Link>
         <div className="flex items-center gap-1">

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IAFE Daily",
+  title: "IAFÉ Daily",
   description: "Gestão de demandas, progresso e documentos",
 };
 

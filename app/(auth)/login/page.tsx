@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -62,8 +63,7 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm text-zinc-500">Senha</label>
-            <Input
-              type="password"
+            <PasswordInput
               required
               minLength={6}
               value={password}
@@ -82,7 +82,7 @@ export default function LoginPage() {
         </p>
         <p className="mt-2 text-center text-xs text-zinc-400">
           <Link href="/" className="hover:text-orange-500">
-            IAFE Daily
+            IAFÉ Daily
           </Link>
         </p>
       </div>

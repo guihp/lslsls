@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   AVATAR_ACCEPT,
   prepareAvatarImage,
@@ -268,8 +269,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               });
             }}
           >
-            <Input
-              type="password"
+            <PasswordInput
               minLength={6}
               required
               placeholder="Nova senha"
